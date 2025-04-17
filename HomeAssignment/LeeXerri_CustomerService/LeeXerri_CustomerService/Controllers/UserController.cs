@@ -27,7 +27,7 @@ public class UserController : ControllerBase
         _http = httpFactory.CreateClient();
     }
 
-    // 1) Register: Firebase Auth + Firestore
+    // register using Firebase Auth + Firestore
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterDto dto)
     {
@@ -51,29 +51,37 @@ public class UserController : ControllerBase
         return Ok(new { user.Uid, user.Email, user.Username });
     }
 
-    // 2) Login: call Firebase REST API for ID token
+    // login by calling Firebase REST API for ID token
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
         var url = $"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={_apiKey}";
         var payload = new { email = dto.Email, password = dto.Password, returnSecureToken = true };
         var resp = await _http.PostAsJsonAsync(url, payload);
+
         if (!resp.IsSuccessStatusCode)
+        {
             return Unauthorized("Invalid credentials.");
+        }
+
         var data = await resp.Content.ReadFromJsonAsync<SignInResponse>();
         return Ok(data);
     }
 
-    // helper: verify Bearer token and ensure the UID matches
+    // verify bearer token and ensure the UID matches
     private async Task<bool> ValidateTokenAsync(string bearer, string uid)
     {
-        if (string.IsNullOrEmpty(bearer) || !bearer.StartsWith("Bearer ")) return false;
+        if (string.IsNullOrEmpty(bearer) || !bearer.StartsWith("Bearer "))
+        {
+            return false;
+        }
+
         var token = bearer.Substring("Bearer ".Length);
         var decoded = await _auth.VerifyIdTokenAsync(token);
         return decoded.Uid == uid;
     }
 
-    // 3) Profile + Inbox
+    // profile + inbox
     [HttpGet("{uid}")]
     public async Task<IActionResult> GetProfile(
         string uid,
@@ -101,7 +109,7 @@ public class UserController : ControllerBase
         });
     }
 
-    // 4a) Send notification
+    // send notification
     [HttpPost("{uid}/notifications")]
     public async Task<IActionResult> SendNotification(
         string uid,
@@ -128,7 +136,7 @@ public class UserController : ControllerBase
         return Ok();
     }
 
-    // 4b) List notifications only
+    // list notifications only
     [HttpGet("{uid}/notifications")]
     public async Task<IActionResult> GetNotificationsOnly(
         string uid,
