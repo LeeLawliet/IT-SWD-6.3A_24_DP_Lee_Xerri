@@ -1,0 +1,18 @@
+# ASP NET Core environment‑specific config
+appsettings.Development.json
+
+# (If you use the built‑in secrets store)
+secrets.json
+
+# Visual Studio build artefacts
+bin/
+obj/
+.vs/
+
+# Rider
+.idea/
+
+# User‐specific files
+*.user
+*.suo
+*.vsidx

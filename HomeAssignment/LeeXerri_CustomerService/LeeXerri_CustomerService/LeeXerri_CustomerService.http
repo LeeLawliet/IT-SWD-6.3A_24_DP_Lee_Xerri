@@ -1,0 +1,6 @@
+@LeeXerri_CustomerService_HostAddress = http://localhost:5018
+
+GET {{LeeXerri_CustomerService_HostAddress}}/swagger/
+Accept: application/json
+
+###
