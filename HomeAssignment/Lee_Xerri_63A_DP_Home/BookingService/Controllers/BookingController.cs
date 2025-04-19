@@ -47,7 +47,7 @@ namespace BookingService.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(
             [FromHeader(Name = "Authorization")] string authHeader,
-            [FromBody] CreateBookingDto dto)
+            [FromBody] CreateBookingDTO dto)
         {
             var uid = await ValidateTokenAsync(authHeader);
             if (uid == null)
@@ -112,7 +112,7 @@ namespace BookingService.Controllers
             var snaps = await query.GetSnapshotAsync();
             var list = snaps.Documents
                 .Select(d => d.ConvertTo<Models.Booking>())
-                .Select(b => new BookingDto
+                .Select(b => new BookingDTO
                 {
                     Id = b.Id,
                     StartLocation = b.StartLocation,
@@ -145,7 +145,7 @@ namespace BookingService.Controllers
             var snaps = await query.GetSnapshotAsync();
             var list = snaps.Documents
                 .Select(d => d.ConvertTo<Models.Booking>())
-                .Select(b => new BookingDto
+                .Select(b => new BookingDTO
                 {
                     Id = b.Id,
                     StartLocation = b.StartLocation,
@@ -157,6 +157,33 @@ namespace BookingService.Controllers
                 .ToList();
 
             return Ok(list);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(string id,
+        [FromHeader(Name = "Authorization")] string? authHeader)
+        {
+            var uid = await ValidateTokenAsync(authHeader);
+            if (uid == null) return Unauthorized();
+
+            var snap = await _db
+              .Collection("bookings")
+              .Document(id)
+              .GetSnapshotAsync();
+            if (!snap.Exists) return NotFound();
+
+            var booking = snap.ConvertTo<Models.Booking>();
+            if (booking.UserUid != uid) return Forbid();
+
+            return Ok(new BookingDTO
+            {
+                Id = booking.Id,
+                StartLocation = booking.StartLocation,
+                EndLocation = booking.EndLocation,
+                DateTime = booking.DateTime.ToDateTime(),
+                Passengers = booking.Passengers,
+                CabType = booking.CabType
+            });
         }
     }
 }

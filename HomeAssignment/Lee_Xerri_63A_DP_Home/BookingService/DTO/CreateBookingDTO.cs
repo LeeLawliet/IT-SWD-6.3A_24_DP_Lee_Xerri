@@ -2,7 +2,7 @@
 
 namespace BookingService.DTO
 {
-    public class CreateBookingDto
+    public class CreateBookingDTO
     {
         [Required] public string StartLocation { get; set; }
         [Required] public string EndLocation { get; set; }
