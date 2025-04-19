@@ -82,7 +82,8 @@ namespace BookingService.Controllers
                 EndLocation = dto.EndLocation,
                 DateTime = Timestamp.FromDateTime(dto.DateTime.ToUniversalTime()),
                 Passengers = dto.Passengers,
-                CabType = dto.CabType
+                CabType = dto.CabType,
+                Paid = false
             };
 
             await _db
@@ -182,8 +183,27 @@ namespace BookingService.Controllers
                 EndLocation = booking.EndLocation,
                 DateTime = booking.DateTime.ToDateTime(),
                 Passengers = booking.Passengers,
-                CabType = booking.CabType
+                CabType = booking.CabType,
+                Paid = booking.Paid
             });
+        }
+
+        [HttpPost("{id}/mark-paid")]
+        public async Task<IActionResult> MarkPaid( string id,
+        [FromHeader(Name = "Authorization")] string authHeader)
+        {
+            var uid = await ValidateTokenAsync(authHeader);
+            if (uid == null) return Unauthorized();
+
+            var docRef = _db.Collection("bookings").Document(id);
+            var snap = await docRef.GetSnapshotAsync();
+            if (!snap.Exists) return NotFound();
+            var booking = snap.ConvertTo<Booking>();
+            if (booking.Paid)
+                return BadRequest("This booking has already been paid.");
+
+            await docRef.UpdateAsync("Paid", true);
+            return Ok();
         }
     }
 }

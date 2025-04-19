@@ -10,5 +10,6 @@ namespace BookingService.DTO
         [Required] public DateTime DateTime { get; set; }
         [Required] public int Passengers { get; set; }
         [Required] public string CabType { get; set; }
+        public bool Paid { get; set; } = false; // default to false
     }
 }
