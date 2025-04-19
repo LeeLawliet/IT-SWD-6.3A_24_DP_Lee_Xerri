@@ -72,6 +72,15 @@ namespace PaymentService
                 client.DefaultRequestHeaders.Add("X-RapidAPI-Key", cfg["Key"]);
             });
 
+            // Weather API client
+            builder.Services.AddHttpClient("WeatherAPI", client =>
+            {
+                var cfg = builder.Configuration.GetSection("RapidApi:WeatherApi");
+                client.BaseAddress = new Uri($"https://{cfg["Host"]}/");
+                client.DefaultRequestHeaders.Add("X-RapidAPI-Host", cfg["Host"]);
+                client.DefaultRequestHeaders.Add("X-RapidAPI-Key", cfg["Key"]);
+            });
+
             // HttpClient for BookingService
             builder.Services
              .AddHttpClient("BookingAPI", client =>

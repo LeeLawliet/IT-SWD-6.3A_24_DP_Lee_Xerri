@@ -9,6 +9,7 @@ using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Linq;
 using BookingService.DTO;
+using System.Text.Json;
 
 namespace PaymentService.Controllers
 {
@@ -62,11 +63,11 @@ namespace PaymentService.Controllers
                 return Unauthorized("Missing or malformed Authorization header.");
 
             // 2) Fetch booking from BookingService
-            var client = _httpFactory.CreateClient("BookingAPI");
-            client.DefaultRequestHeaders.Authorization =
+            var bookingClient = _httpFactory.CreateClient("BookingAPI");
+            bookingClient.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", bearer.Substring(7));
 
-            var resp = await client.GetAsync($"api/Booking/{dto.BookingId}");
+            var resp = await bookingClient.GetAsync($"api/Booking/{dto.BookingId}");
             if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
                 return NotFound("Booking not found.");
             resp.EnsureSuccessStatusCode();
@@ -74,9 +75,32 @@ namespace PaymentService.Controllers
             var booking = await resp.Content
                                     .ReadFromJsonAsync<BookingDTO>()
                           ?? throw new InvalidOperationException("Invalid booking data.");
+            
+            
+            if (booking.Paid)
+            {
+                return BadRequest("Booking already paid.");
+            }
 
-            // 3) Get base fare from external API
-            var cabFare = await _fareSvc.GetBaseFareAsync(dto.BookingId);
+            // create connection to WeatherAPI client
+            var weatherClient = _httpFactory.CreateClient("WeatherAPI");
+
+            // retrieve Start Point Location Latitude and Longitude
+            var startJson = await weatherClient.GetFromJsonAsync<JsonElement>($"forecast.json?q={Uri.EscapeDataString(booking.StartLocation)}&days=1");
+            var startLoc = startJson.GetProperty("location");
+            var startLat = startLoc.GetProperty("lat").GetDouble();
+            var startLon = startLoc.GetProperty("lon").GetDouble();
+
+            // retrieve End Point Location Latitude and Longitude
+            var endJson = await weatherClient.GetFromJsonAsync<JsonElement>($"forecast.json?q={Uri.EscapeDataString(booking.EndLocation)}&days=1");
+            var endLoc = endJson.GetProperty("location");
+            var endLat = endLoc.GetProperty("lat").GetDouble();
+            var endLon = endLoc.GetProperty("lon").GetDouble();
+
+            // get the base fare using coordinates
+            var baseFare = await _fareSvc.GetBaseFareAsync(
+                startLat, startLon,
+                endLat, endLon);
 
             // 4) Lookup multipliers
             if (!CabMult.TryGetValue(booking.CabType, out var cabM))
@@ -90,7 +114,7 @@ namespace PaymentService.Controllers
                           throw new InvalidOperationException("Too many passengers");
 
             // 5) Compute total
-            var total = cabFare * cabM * dayM * paxM * (dto.Discount ?? 1.0);
+            var total = baseFare * cabM * dayM * paxM * 1;
 
             // 6) Record payment in Firestore
             var payment = new Models.Payment
@@ -98,17 +122,23 @@ namespace PaymentService.Controllers
                 Id = Guid.NewGuid().ToString(),
                 BookingId = booking.Id,
                 UserUid = uid,
-                CabFare = cabFare,
+                CabFare = baseFare,
                 CabMultiplier = cabM,
                 DaytimeMultiplier = dayM,
                 PassengersMultiplier = paxM,
-                DiscountMultiplier = dto.Discount ?? 1.0,
+                DiscountMultiplier = 1,
                 TotalPrice = total,
                 CreatedAt = Timestamp.GetCurrentTimestamp()
             };
             await _db.Collection("payments")
                      .Document(payment.Id)
                      .SetAsync(payment);
+
+            booking.Paid = true;
+
+            var markResp = await bookingClient
+    .PostAsync($"api/booking/{booking.Id}/mark-paid", null);
+            markResp.EnsureSuccessStatusCode();
 
             // 7) Return slim DTO
             return Ok(new PaymentDTO

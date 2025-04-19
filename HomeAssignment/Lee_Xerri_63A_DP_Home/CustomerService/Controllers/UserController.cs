@@ -29,7 +29,7 @@ public class UserController : ControllerBase
 
     // register using Firebase Auth + Firestore
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterDto dto)
+    public async Task<IActionResult> Register([FromBody] RegisterDTO dto)
     {
         // create in Firebase Auth
         var userRec = await _auth.CreateUserAsync(new UserRecordArgs
@@ -53,7 +53,7 @@ public class UserController : ControllerBase
 
     // login by calling Firebase REST API for ID token
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginDto dto)
+    public async Task<IActionResult> Login([FromBody] LoginDTO dto)
     {
         var url = $"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={_apiKey}";
         var payload = new { email = dto.Email, password = dto.Password, returnSecureToken = true };

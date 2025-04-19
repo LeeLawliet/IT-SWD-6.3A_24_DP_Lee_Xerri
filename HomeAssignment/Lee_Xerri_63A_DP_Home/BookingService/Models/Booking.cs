@@ -12,5 +12,6 @@ namespace BookingService.Models
         [FirestoreProperty] public Timestamp DateTime { get; set; }
         [FirestoreProperty] public int Passengers { get; set; }
         [FirestoreProperty] public string CabType { get; set; } // "Economic","Premium","Executive"
+        [FirestoreProperty] public bool Paid { get; set; }
     }
 }

@@ -2,6 +2,7 @@
 
 namespace PaymentService.Models
 {
+    [FirestoreData]
     public class Payment
     {
         [FirestoreProperty] public string Id { get; set; }
