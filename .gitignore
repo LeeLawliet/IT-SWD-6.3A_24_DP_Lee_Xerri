@@ -1,6 +1,47 @@
+# ==== Build output ====
+bin/
+obj/
+
+# ==== Visual Studio workspace ====
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# ==== Rider workspace ====
+.idea/
+
+# ==== VS Code workspace ====
+.vscode/
+
+# ==== OS files ====
+.DS_Store
+Thumbs.db
+
+# ==== NuGet ====
+# ignore packages directory if you restore on build
+**/[Pp]ackages/*
+# except build/, which is used by project.json
+!**/[Pp]ackages/build/
+
+# ==== Secrets & user‑specific settings ====
+appsettings.Development.json
+secrets.json
+firebase-service-account.json
+
+# ==== Logs ====
+*.log
+logs/
+
+# ==== Test results ====
+TestResults/
+*.trx
+
+# ==== Other tooling/cache ====
 *.vsidx
-HomeAssignment/LeeXerri_CustomerService/LeeXerri_CustomerService/appsettings.json
-HomeAssignment/LeeXerri_CustomerService/LeeXerri_CustomerService/firebase-service-account.json
-TeacherExample/IdentityA/IdentityA/appsettings.Development.json
-TeacherExample/IdentityA/IdentityA/appsettings.json
 /TeacherExample
+HomeAssignment/Lee_Xerri_63A_DP_Home/LocationService/appsettings.json
+HomeAssignment/Lee_Xerri_63A_DP_Home/BookingService/appsettings.json
+HomeAssignment/Lee_Xerri_63A_DP_Home/CustomerService/appsettings.json
+HomeAssignment/Lee_Xerri_63A_DP_Home/PaymentService/appsettings.json
