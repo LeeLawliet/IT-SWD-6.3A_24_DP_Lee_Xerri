@@ -14,20 +14,23 @@ namespace LocationService
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            // Load Firebase settings
+            var firebaseProjectId = builder.Configuration["Firebase:ProjectId"];
+            var firebaseCredentialPath = Path.Combine(AppContext.BaseDirectory, "firebase-service-account.json");
+
             // Initialize Firebase SDK
             FirebaseApp.Create(new AppOptions
             {
-                Credential = GoogleCredential.FromFile("firebase-service-account.json")
+                Credential = GoogleCredential.FromFile(firebaseCredentialPath)
             });
 
-            // Firestore
+            // Firestore registration
             builder.Services.AddSingleton(_ =>
             {
-                var path = Path.Combine(AppContext.BaseDirectory, "firebase-service-account.json");
-                var json = File.ReadAllText(path);
+                var json = File.ReadAllText(firebaseCredentialPath);
                 return new FirestoreDbBuilder
                 {
-                    ProjectId = builder.Configuration["Firebase:ProjectId"],
+                    ProjectId = firebaseProjectId,
                     JsonCredentials = json
                 }.Build();
             });
@@ -35,13 +38,12 @@ namespace LocationService
             // FirebaseAuth
             builder.Services.AddSingleton(FirebaseAdmin.Auth.FirebaseAuth.DefaultInstance);
 
-            // CORS
-            builder.Services.AddCors(o => o.AddPolicy("AllowAll", p =>
+            // CORS (allow frontend or Swagger origins)
+            builder.Services.AddCors(opts => opts.AddPolicy("AllowAll", p =>
                 p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
-            // Authentication
-            var projectId = builder.Configuration["Firebase:ProjectId"];
-            var authority = $"https://securetoken.google.com/{projectId}";
+            // JWT Authentication using Firebase
+            var authority = $"https://securetoken.google.com/{firebaseProjectId}";
             builder.Services
                 .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(opts =>
@@ -52,25 +54,25 @@ namespace LocationService
                         ValidateIssuer = true,
                         ValidIssuer = authority,
                         ValidateAudience = true,
-                        ValidAudience = projectId,
+                        ValidAudience = firebaseProjectId,
                         ValidateLifetime = true
                     };
                 });
             builder.Services.AddAuthorization();
 
-            //// Weather API client
-            //builder.Services.AddHttpClient<IWeatherService, WeatherService>(client =>
-            //{
-            //    var cfg = builder.Configuration.GetSection("RapidApi:WeatherApi");
-            //    client.BaseAddress = new Uri($"https://{cfg["Host"]}/");
-            //    client.DefaultRequestHeaders.Add("X-RapidAPI-Host", cfg["Host"]);
-            //    client.DefaultRequestHeaders.Add("X-RapidAPI-Key", cfg["Key"]);
-            //});
+            // WeatherAPI.com client for forecast
+            builder.Services.AddHttpClient("WeatherAPI", client =>
+            {
+                var cfg = builder.Configuration.GetSection("RapidApi:WeatherApi");
+                client.BaseAddress = new Uri($"https://{cfg["Host"]}/");
+                client.DefaultRequestHeaders.Add("X-RapidAPI-Host", cfg["Host"]);
+                client.DefaultRequestHeaders.Add("X-RapidAPI-Key", cfg["Key"]);
+            });
 
             // LocationService DI
             builder.Services.AddScoped<ILocationService, LocationService.Services.LocationService>();
 
-            // MVC + Swagger
+            // Controllers and Swagger
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>
@@ -82,22 +84,15 @@ namespace LocationService
                     Type = SecuritySchemeType.Http,
                     Scheme = "Bearer",
                     BearerFormat = "JWT",
-                    Description = "Enter: Bearer {token}"
+                    Description = "Enter 'Bearer <ID token>'"
                 });
                 c.AddSecurityRequirement(new OpenApiSecurityRequirement
-                {
-                    {
-                        new OpenApiSecurityScheme
-                        {
-                            Reference = new OpenApiReference
-                            {
-                                Type = ReferenceType.SecurityScheme,
-                                Id = "Bearer"
-                            }
-                        },
-                        Array.Empty<string>()
-                    }
-                });
+    {
+        {
+            new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } },
+            Array.Empty<string>()
+        }
+    });
             });
 
             var app = builder.Build();
