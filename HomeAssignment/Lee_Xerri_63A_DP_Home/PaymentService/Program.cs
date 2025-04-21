@@ -1,13 +1,15 @@
-﻿using BookingService.Services;
-using FirebaseAdmin;
+﻿using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Firestore;
+using Google.Cloud.Firestore.V1;
+using LocationService.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using PaymentService.Fares;
 
-namespace PaymentService
+
+namespace LeeXerri_PaymentService
 {
     public class Program
     {
@@ -36,17 +38,13 @@ namespace PaymentService
             // — FirebaseAuth
             builder.Services.AddSingleton(FirebaseAdmin.Auth.FirebaseAuth.DefaultInstance);
 
-            // — CORS for local testing (Swagger UI)
-            builder.Services.AddCors(o => o.AddPolicy("AllowLocal", p =>
-                p.WithOrigins("https://localhost:44373", "http://localhost:5238")
-                 .AllowAnyHeader()
-                 .AllowAnyMethod()
-            ));
+            // — CORS (for localhost testing)
+            builder.Services.AddCors(opts => opts.AddPolicy("AllowAll", p =>
+                p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
-            // — JWT Bearer using Firebase tokens
+            // — JWT Bearer (Firebase Issuer/Audience)
             var projectId = builder.Configuration["Firebase:ProjectId"];
             var authority = $"https://securetoken.google.com/{projectId}";
-
             builder.Services
                 .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(opts =>
@@ -62,24 +60,29 @@ namespace PaymentService
                     };
                 });
             builder.Services.AddAuthorization();
-            
-            // — Taxi Fare Calculator client
+
             builder.Services.AddHttpClient<IFareService, FareService>((sp, client) =>
             {
-                var cfg = sp.GetRequiredService<IConfiguration>()
-                            .GetSection("RapidApi:TaxiFare");
+                var cfg = sp.GetRequiredService<IConfiguration>().GetSection("RapidApi:TaxiFare");
                 client.BaseAddress = new Uri($"https://{cfg["Host"]}/");
                 client.DefaultRequestHeaders.Add("X-RapidAPI-Host", cfg["Host"]);
                 client.DefaultRequestHeaders.Add("X-RapidAPI-Key", cfg["Key"]);
             });
 
-            builder.Services.AddScoped<BookingService.Services.IBookingService,
-                           BookingService.Services.BookingService>();
-            
-            builder.Services.AddHttpClient<LocationService.Services.ILocationService,
-            LocationService.Services.LocationService>(client =>
+            builder.Services.AddHttpClient("BookingAPI", client =>
             {
-                var cfg = builder.Configuration.GetSection("RapidApi:WeatherApi");
+                client.BaseAddress = new Uri(builder.Configuration["BookingService:BaseUrl"]!);
+            });
+
+            builder.Services.AddHttpClient("CustomerAPI", client =>
+            {
+                client.BaseAddress = new Uri(builder.Configuration["CustomerService:BaseUrl"]!);
+            });
+
+            //   * LocationService (typed client)
+            builder.Services.AddHttpClient<ILocationService, LocationService.Services.LocationService>((sp, client) =>
+            {
+                var cfg = sp.GetRequiredService<IConfiguration>().GetSection("RapidApi:WeatherApi");
                 client.BaseAddress = new Uri($"https://{cfg["Host"]}/");
                 client.DefaultRequestHeaders.Add("X-RapidAPI-Host", cfg["Host"]);
                 client.DefaultRequestHeaders.Add("X-RapidAPI-Key", cfg["Key"]);
@@ -97,25 +100,23 @@ namespace PaymentService
                     Type = SecuritySchemeType.Http,
                     Scheme = "Bearer",
                     BearerFormat = "JWT",
-                    Description = "Enter: Bearer {your_Firebase_ID_token}"
+                    Description = "Enter: Bearer {your Firebase ID token}"
                 });
-                c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                c.AddSecurityRequirement(new OpenApiSecurityRequirement {
                 {
-                    {
-                        new OpenApiSecurityScheme {
-                            Reference = new OpenApiReference {
-                                Type = ReferenceType.SecurityScheme,
-                                Id   = "Bearer"
-                            }
-                        },
-                        Array.Empty<string>()
-                    }
+                    new OpenApiSecurityScheme {
+                        Reference = new OpenApiReference {
+                            Type = ReferenceType.SecurityScheme,
+                            Id   = "Bearer"
+                        }
+                    },
+                    Array.Empty<string>()
+                }
                 });
+                // only show PaymentController in this service’s Swagger:
                 c.DocInclusionPredicate((docName, apiDesc) =>
-                {
-                    var ctrl = apiDesc.ActionDescriptor.RouteValues["controller"];
-                    return string.Equals(ctrl, "Payment", StringComparison.OrdinalIgnoreCase);
-                });
+                    apiDesc.ActionDescriptor.RouteValues["controller"]?
+                        .Equals("Payment", StringComparison.OrdinalIgnoreCase) ?? false);
             });
 
             var app = builder.Build();

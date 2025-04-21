@@ -1,6 +1,11 @@
+using CustomerService.Services;
 using FirebaseAdmin;
+using FirebaseAdmin.Auth;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Firestore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 namespace LeeXerri_CustomerService
 {
@@ -10,43 +15,85 @@ namespace LeeXerri_CustomerService
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // initialize Firebase SDK from service account JSON
+            // — Firebase SDK + Firestore
             FirebaseApp.Create(new AppOptions
             {
                 Credential = GoogleCredential.FromFile("firebase-service-account.json")
             });
-
-            // register FirestoreDb
-            builder.Services.AddSingleton(_ =>
-            {
-                // load the JSON
-                var jsonPath = Path.Combine(AppContext.BaseDirectory, "firebase-service-account.json");
-                var json = File.ReadAllText(jsonPath);
-
-                // build a FirestoreDb with those credentials
-                var fbBuilder = new FirestoreDbBuilder
+            builder.Services.AddSingleton(FirebaseAuth.DefaultInstance);
+            builder.Services.AddSingleton(sp => {
+                var json = File.ReadAllText("firebase-service-account.json");
+                return new FirestoreDbBuilder
                 {
-                    ProjectId = "itswd63a24dpleexerri",
-                    // JsonCredentials takes the entire JSON text
+                    ProjectId = builder.Configuration["Firebase:ProjectId"]!,
                     JsonCredentials = json
-                };
-                return fbBuilder.Build();
+                }.Build();
             });
 
-            // register FirebaseAuth for token verification
-            builder.Services.AddSingleton(FirebaseAdmin.Auth.FirebaseAuth.DefaultInstance);
+            // — JWT Bearer (Firebase tokens)
+            builder.Services
+            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(opts =>
+            {
+                var projectId = builder.Configuration["Firebase:ProjectId"];
+                var authority = $"https://securetoken.google.com/{projectId}";
+                opts.Authority = authority;
+                opts.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = authority,
+                    ValidateAudience = true,
+                    ValidAudience = projectId,
+                    ValidateLifetime = true
+                };
+            });
+            builder.Services.AddAuthorization();
 
-            // HttpClient for Auth REST calls login
+            // — CORS
+            builder.Services.AddCors(opts =>
+                opts.AddPolicy("AllowAll", p => p
+                    .AllowAnyOrigin()
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                )
+            );
+
             builder.Services.AddHttpClient();
+            builder.Services.AddScoped<ICustomerService, CustomerService.Services.CustomerService>();
 
-            // MVC + Swagger
+            // — MVC & Swagger
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
+            builder.Services.AddSwaggerGen(c => {
+                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    In = ParameterLocation.Header,
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "Bearer",
+                    BearerFormat = "JWT",
+                    Description = "Enter: Bearer {your Firebase ID token}"
+                });
+                c.AddSecurityRequirement(new OpenApiSecurityRequirement {
+                    {
+                        new OpenApiSecurityScheme {
+                            Reference = new OpenApiReference {
+                                Type = ReferenceType.SecurityScheme,
+                                Id   = "Bearer"
+                            }
+                        },
+                        Array.Empty<string>()
+                    }
+                });
+            });
 
             var app = builder.Build();
+
+            app.UseCors("AllowAll");
             app.UseSwagger();
             app.UseSwaggerUI();
+            app.UseAuthentication();
+            app.UseAuthorization();
             app.MapControllers();
             app.Run();
         }
