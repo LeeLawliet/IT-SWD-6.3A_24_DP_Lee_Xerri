@@ -33,7 +33,7 @@ namespace BookingService.Services
                 UserUid = userUid,
                 StartLocation = dto.StartLocation,
                 EndLocation = dto.EndLocation,
-                DateTime = Timestamp.FromDateTime(dto.DateTime.ToUniversalTime()),
+                DateTime = Timestamp.FromDateTime(DateTime.UtcNow),
                 Passengers = dto.Passengers,
                 CabType = dto.CabType,
                 Paid = false

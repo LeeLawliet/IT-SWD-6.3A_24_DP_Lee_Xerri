@@ -20,13 +20,15 @@ namespace BookingService.Controllers
         private readonly FirebaseAuth _auth;
         private readonly FirestoreDb _db;
         private readonly IHttpClientFactory _httpFactory;
+        private readonly ILogger<BookingController> _logger;
 
-        public BookingController(IBookingService svc, FirebaseAuth auth, IHttpClientFactory httpFactory, FirestoreDb db)
+        public BookingController(IBookingService svc, FirebaseAuth auth, IHttpClientFactory httpFactory, FirestoreDb db, ILogger<BookingController> logger)
         {
             _svc = svc;
             _auth = auth;
             _httpFactory = httpFactory;
             _db = db;
+            _logger = logger;
         }
 
         private static class CabTypeRules
@@ -59,7 +61,7 @@ namespace BookingService.Controllers
             if (uid == null)
                 return Unauthorized();
 
-            // Cab type validation
+            // cab type validation
             if (!Enum.TryParse<CabType>(dto.CabType, ignoreCase: true, out var cab)
                 || !CabTypeRules.MaxPassengersByCabType.ContainsKey(cab))
             {
@@ -70,7 +72,7 @@ namespace BookingService.Controllers
                 });
             }
 
-            // Passenger count validation
+            // passenger count validation
             var max = CabTypeRules.MaxPassengersByCabType[cab];
             if (dto.Passengers < 1 || dto.Passengers > max)
                 return BadRequest(new
@@ -78,20 +80,40 @@ namespace BookingService.Controllers
                     error = $"{cab} supports 1–{max} passengers."
                 });
 
-            // Delegate to service
+            // delegate to service
             var bookingId = await _svc.CreateAsync(uid, dto);
 
-            // After booking is made, start user notification process
+            // after booking is made, start user notification process...
+            // creation of customer service client
             var userClient = _httpFactory.CreateClient("CustomerAPI");
-
             var bearer = Request.Headers["Authorization"].FirstOrDefault()?.Substring("Bearer ".Length);
             if (string.IsNullOrEmpty(bearer))
             {
                 return Unauthorized("Missing token");
             }
-
             userClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
-            var userRef = _db.Collection("users").Document(uid);
+
+            // run arrival notification task asynchronously
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromMinutes(3));
+                    Console.WriteLine($"Starting arrival notification process...");
+                    var message =
+                        $"Your cab is ready for pickup! Here are your booking details:\n" +
+                        $"Booking ID: \"{bookingId}\".\n" +
+                        $"Start Location: \"{dto.StartLocation}\".\nEnd Location: \"{dto.EndLocation}\".\n" +
+                        $"Thank you for using our service.";
+                    await userClient.PostAsJsonAsync(
+                        $"/api/User/{uid}/notifications",
+                        message);
+                }
+                catch (Exception e)
+                {
+                   _logger.LogError(e, $"Failed to start async");
+                }
+            });
 
             return Ok(new { id = bookingId });
         }
