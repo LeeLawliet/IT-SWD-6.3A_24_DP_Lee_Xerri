@@ -1,4 +1,5 @@
-﻿using FirebaseAdmin;
+﻿using BookingService.Services;
+using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Firestore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -61,7 +62,7 @@ namespace PaymentService
                     };
                 });
             builder.Services.AddAuthorization();
-
+            
             // — Taxi Fare Calculator client
             builder.Services.AddHttpClient<IFareService, FareService>((sp, client) =>
             {
@@ -72,13 +73,17 @@ namespace PaymentService
                 client.DefaultRequestHeaders.Add("X-RapidAPI-Key", cfg["Key"]);
             });
 
-            // HttpClient for BookingService
-            builder.Services
-             .AddHttpClient("BookingAPI", client =>
-             {
-                 var url = builder.Configuration["BookingService:BaseUrl"]!;
-                 client.BaseAddress = new Uri(url);
-             });
+            builder.Services.AddScoped<BookingService.Services.IBookingService,
+                           BookingService.Services.BookingService>();
+            
+            builder.Services.AddHttpClient<LocationService.Services.ILocationService,
+            LocationService.Services.LocationService>(client =>
+            {
+                var cfg = builder.Configuration.GetSection("RapidApi:WeatherApi");
+                client.BaseAddress = new Uri($"https://{cfg["Host"]}/");
+                client.DefaultRequestHeaders.Add("X-RapidAPI-Host", cfg["Host"]);
+                client.DefaultRequestHeaders.Add("X-RapidAPI-Key", cfg["Key"]);
+            });
 
             // — MVC + Swagger
             builder.Services.AddControllers();
@@ -105,6 +110,11 @@ namespace PaymentService
                         },
                         Array.Empty<string>()
                     }
+                });
+                c.DocInclusionPredicate((docName, apiDesc) =>
+                {
+                    var ctrl = apiDesc.ActionDescriptor.RouteValues["controller"];
+                    return string.Equals(ctrl, "Payment", StringComparison.OrdinalIgnoreCase);
                 });
             });
 

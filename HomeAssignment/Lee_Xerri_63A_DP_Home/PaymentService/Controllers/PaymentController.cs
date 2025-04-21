@@ -4,11 +4,15 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PaymentService.DTO;
 using PaymentService.Fares;
+using LocationService.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Linq;
 using BookingService.DTO;
+using System.Text.Json;
+using BookingService.Services;
+using BookingService.Models;
 
 namespace PaymentService.Controllers
 {
@@ -17,10 +21,11 @@ namespace PaymentService.Controllers
     [Authorize]
     public class PaymentController : ControllerBase
     {
+        private readonly ILocationService _locSvc;
         private readonly FirestoreDb _db;
         private readonly FirebaseAuth _auth;
         private readonly IFareService _fareSvc;
-        private readonly IHttpClientFactory _httpFactory;
+        private readonly IBookingService _bookSvc;
 
         private static readonly IReadOnlyDictionary<string, double> CabMult = new Dictionary<string, double>
         {
@@ -30,15 +35,17 @@ namespace PaymentService.Controllers
         };
 
         public PaymentController(
+            ILocationService locSvc,
             FirestoreDb db,
             FirebaseAuth auth,
             IFareService fareSvc,
-            IHttpClientFactory httpFactory)
+            IBookingService bookSvc)
         {
+            _locSvc = locSvc;
             _db = db;
             _auth = auth;
             _fareSvc = fareSvc;
-            _httpFactory = httpFactory;
+            _bookSvc = bookSvc;
         }
 
         private string? GetUid() =>
@@ -48,69 +55,61 @@ namespace PaymentService.Controllers
         [HttpPost]
         public async Task<IActionResult> Pay([FromBody] CreatePaymentDTO dto)
         {
-            // 0) ensure we’re authenticated
             var uid = GetUid();
-            if (uid == null)
-                return Unauthorized();
+            if (uid == null) return Unauthorized();
 
-            // 1) grab the raw Authorization header
-            var bearer = Request.Headers
-                                .FirstOrDefault(h => h.Key == "Authorization")
-                                .Value
-                                .FirstOrDefault();
-            if (string.IsNullOrEmpty(bearer) || !bearer.StartsWith("Bearer "))
-                return Unauthorized("Missing or malformed Authorization header.");
-
-            // 2) Fetch booking from BookingService
-            var client = _httpFactory.CreateClient("BookingAPI");
-            client.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", bearer.Substring(7));
-
-            var resp = await client.GetAsync($"api/Booking/{dto.BookingId}");
-            if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+            // fetch booking via IBookingService
+            var booking = await _bookSvc.GetByIdAsync(uid, dto.BookingId);
+            if (booking == null)
+            {
                 return NotFound("Booking not found.");
-            resp.EnsureSuccessStatusCode();
+            }
 
-            var booking = await resp.Content
-                                    .ReadFromJsonAsync<BookingDTO>()
-                          ?? throw new InvalidOperationException("Invalid booking data.");
+            if (booking.Paid)
+            {
+                return BadRequest("Booking already paid.");
+            }
 
-            // 3) Get base fare from external API
-            var cabFare = await _fareSvc.GetBaseFareAsync(dto.BookingId);
+            var (startLat, startLon) = await _locSvc.GetCoordinatesAsync(booking.StartLocation);
+            var (endLat, endLon) = await _locSvc.GetCoordinatesAsync(booking.EndLocation);
 
-            // 4) Lookup multipliers
+            // fare lookup
+            var baseFare = await _fareSvc.GetBaseFareAsync(startLat, startLon, endLat, endLon);
+
+            // multipliers
             if (!CabMult.TryGetValue(booking.CabType, out var cabM))
                 return BadRequest($"Unknown cab type '{booking.CabType}'.");
-
             var hour = booking.DateTime.ToLocalTime().Hour;
             var dayM = (hour >= 0 && hour < 8) ? 1.2 : 1.0;
-
             double paxM = booking.Passengers <= 4 ? 1 :
                           booking.Passengers <= 8 ? 2 :
                           throw new InvalidOperationException("Too many passengers");
 
-            // 5) Compute total
-            var total = cabFare * cabM * dayM * paxM * (dto.Discount ?? 1.0);
+            // total
+            var total = baseFare * cabM * dayM * paxM * 1 /* discount */;
 
-            // 6) Record payment in Firestore
+            // record payment
             var payment = new Models.Payment
             {
                 Id = Guid.NewGuid().ToString(),
                 BookingId = booking.Id,
                 UserUid = uid,
-                CabFare = cabFare,
+                CabFare = baseFare,
                 CabMultiplier = cabM,
                 DaytimeMultiplier = dayM,
                 PassengersMultiplier = paxM,
-                DiscountMultiplier = dto.Discount ?? 1.0,
+                DiscountMultiplier = 1,
                 TotalPrice = total,
                 CreatedAt = Timestamp.GetCurrentTimestamp()
             };
-            await _db.Collection("payments")
-                     .Document(payment.Id)
-                     .SetAsync(payment);
+            await _db.Collection("payments").Document(payment.Id).SetAsync(payment);
 
-            // 7) Return slim DTO
+            // mark booking paid
+            var marked = await _bookSvc.MarkPaidAsync(uid, booking.Id);
+            if (!marked)
+                return StatusCode(500, "Failed to mark booking paid.");
+
+            // return DTO
             return Ok(new PaymentDTO
             {
                 Id = payment.Id,
