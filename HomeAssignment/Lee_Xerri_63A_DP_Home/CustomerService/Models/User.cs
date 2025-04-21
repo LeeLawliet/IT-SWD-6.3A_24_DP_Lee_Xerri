@@ -8,5 +8,6 @@
         [FirestoreProperty] public string Uid { get; set; }
         [FirestoreProperty] public string Email { get; set; }
         [FirestoreProperty] public string Username { get; set; }
+        [FirestoreProperty] public bool DiscountAvailable { get; set; }
     }
 }

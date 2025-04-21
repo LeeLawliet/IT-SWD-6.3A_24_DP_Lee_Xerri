@@ -14,7 +14,6 @@ namespace BookingService.Services
         Task<IEnumerable<BookingDTO>> GetCurrentAsync(string userUid);
         Task<IEnumerable<BookingDTO>> GetPastAsync(string userUid);
         Task<BookingDTO?> GetByIdAsync(string userUid, string id);
-        Task<bool> MarkPaidAsync(string userUid, string id);
     }
 
     public class BookingService : IBookingService
@@ -111,19 +110,6 @@ namespace BookingService.Services
                 CabType = b.CabType,
                 Paid = b.Paid
             };
-        }
-
-        public async Task<bool> MarkPaidAsync(string userUid, string id)
-        {
-            var doc = _db.Collection("bookings").Document(id);
-            var snap = await doc.GetSnapshotAsync();
-            if (!snap.Exists) return false;
-
-            var b = snap.ConvertTo<Booking>();
-            if (b.UserUid != userUid || b.Paid) return false;
-
-            await doc.UpdateAsync("Paid", true);
-            return true;
         }
     }
 }

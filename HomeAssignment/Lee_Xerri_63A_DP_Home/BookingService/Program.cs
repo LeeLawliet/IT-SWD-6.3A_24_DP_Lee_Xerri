@@ -3,6 +3,7 @@ using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Firestore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
 namespace BookingService
@@ -13,16 +14,48 @@ namespace BookingService
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // initialize Firebase SDK from service account JSON
+            // Initialize Firebase SDK
             FirebaseApp.Create(new AppOptions
             {
                 Credential = GoogleCredential.FromFile("firebase-service-account.json")
             });
 
-            // configure JWT Bearer authentication
+            // Firestore registration
+            builder.Services.AddSingleton(_ =>
+            {
+                var json = File.ReadAllText("firebase-service-account.json");
+                return new FirestoreDbBuilder
+                {
+                    ProjectId = builder.Configuration["Firebase:ProjectId"],
+                    JsonCredentials = json
+                }.Build();
+            });
+
+            // FirebaseAuth
+            builder.Services.AddSingleton(FirebaseAdmin.Auth.FirebaseAuth.DefaultInstance);
+
+            // CORS (allow frontend or Swagger origins)
+            builder.Services.AddCors(opts => opts.AddPolicy("AllowAll", p =>
+                p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+
+            // — JWT Bearer (Firebase Issuer/Audience)
+            var projectId = builder.Configuration["Firebase:ProjectId"];
+            var authority = $"https://securetoken.google.com/{projectId}";
             builder.Services
                 .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddJwtBearer();
+                .AddJwtBearer(opts =>
+                {
+                    opts.Authority = authority;
+                    opts.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidIssuer = authority,
+                        ValidateAudience = true,
+                        ValidAudience = projectId,
+                        ValidateLifetime = true
+                    };
+                });
+            builder.Services.AddAuthorization();
 
             // add Swagger with Bearer auth scheme
             builder.Services.AddSwaggerGen(c =>

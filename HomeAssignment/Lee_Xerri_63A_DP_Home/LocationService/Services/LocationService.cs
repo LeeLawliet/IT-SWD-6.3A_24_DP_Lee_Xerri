@@ -35,7 +35,7 @@ namespace LocationService.Services
 
         public async Task<LocationDTO[]> GetAllAsync(string userUid)
         {
-            var snaps = await _db.Collection("locations")
+            var snaps = await _db.Collection("favorites")
                                  .WhereEqualTo("UserUid", userUid)
                                  .OrderByDescending("CreatedAt")
                                  .GetSnapshotAsync();
@@ -47,7 +47,7 @@ namespace LocationService.Services
 
         public async Task<LocationDTO> GetByIdAsync(string userUid, string id)
         {
-            var doc = await _db.Collection("locations").Document(id).GetSnapshotAsync();
+            var doc = await _db.Collection("favorites").Document(id).GetSnapshotAsync();
             if (!doc.Exists)
             {
                 throw new KeyNotFoundException();
@@ -81,13 +81,13 @@ namespace LocationService.Services
                 Longitude = lon,
                 CreatedAt = Timestamp.GetCurrentTimestamp()
             };
-            await _db.Collection("locations").Document(loc.Id).SetAsync(loc);
+            await _db.Collection("favorites").Document(loc.Id).SetAsync(loc);
             return new LocationDTO { Id = loc.Id, Name = loc.Name, Latitude = loc.Latitude, Longitude = loc.Longitude};
         }
 
         public async Task UpdateAsync(string userUid, string id, CreateLocationDTO dto)
         {
-            var doc = _db.Collection("locations").Document(id);
+            var doc = _db.Collection("favorites").Document(id);
             var snap = await doc.GetSnapshotAsync();
 
             if (!snap.Exists)
@@ -113,7 +113,7 @@ namespace LocationService.Services
 
         public async Task DeleteAsync(string userUid, string id)
         {
-            var doc = _db.Collection("locations").Document(id);
+            var doc = _db.Collection("favorites").Document(id);
             var snap = await doc.GetSnapshotAsync();
             if (!snap.Exists)
             {

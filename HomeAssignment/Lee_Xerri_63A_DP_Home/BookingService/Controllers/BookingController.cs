@@ -2,9 +2,11 @@
 using BookingService.Models;
 using BookingService.Services;
 using FirebaseAdmin.Auth;
+using Google.Cloud.Firestore;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
+using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -16,11 +18,15 @@ namespace BookingService.Controllers
     {
         private readonly IBookingService _svc;
         private readonly FirebaseAuth _auth;
+        private readonly FirestoreDb _db;
+        private readonly IHttpClientFactory _httpFactory;
 
-        public BookingController(IBookingService svc, FirebaseAuth auth)
+        public BookingController(IBookingService svc, FirebaseAuth auth, IHttpClientFactory httpFactory, FirestoreDb db)
         {
             _svc = svc;
             _auth = auth;
+            _httpFactory = httpFactory;
+            _db = db;
         }
 
         private static class CabTypeRules
@@ -74,6 +80,19 @@ namespace BookingService.Controllers
 
             // Delegate to service
             var bookingId = await _svc.CreateAsync(uid, dto);
+
+            // After booking is made, start user notification process
+            var userClient = _httpFactory.CreateClient("CustomerAPI");
+
+            var bearer = Request.Headers["Authorization"].FirstOrDefault()?.Substring("Bearer ".Length);
+            if (string.IsNullOrEmpty(bearer))
+            {
+                return Unauthorized("Missing token");
+            }
+
+            userClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+            var userRef = _db.Collection("users").Document(uid);
+
             return Ok(new { id = bookingId });
         }
 
@@ -115,22 +134,6 @@ namespace BookingService.Controllers
                 return NotFound();
 
             return Ok(booking);
-        }
-
-        [HttpPost("{id}/mark-paid")]
-        public async Task<IActionResult> MarkPaid(
-            string id,
-            [FromHeader(Name = "Authorization")] string authHeader)
-        {
-            var uid = await ValidateTokenAsync(authHeader);
-            if (uid == null)
-                return Unauthorized();
-
-            var success = await _svc.MarkPaidAsync(uid, id);
-            if (!success)
-                return BadRequest("Booking not found or already paid.");
-
-            return Ok();
         }
     }
 }

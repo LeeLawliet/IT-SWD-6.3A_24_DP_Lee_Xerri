@@ -1,4 +1,5 @@
 using FirebaseAdmin;
+using Google.Api;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Firestore;
 using LocationService.Services;
@@ -14,23 +15,19 @@ namespace LocationService
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Load Firebase settings
-            var firebaseProjectId = builder.Configuration["Firebase:ProjectId"];
-            var firebaseCredentialPath = Path.Combine(AppContext.BaseDirectory, "firebase-service-account.json");
-
             // Initialize Firebase SDK
             FirebaseApp.Create(new AppOptions
             {
-                Credential = GoogleCredential.FromFile(firebaseCredentialPath)
+                Credential = GoogleCredential.FromFile("firebase-service-account.json")
             });
 
             // Firestore registration
             builder.Services.AddSingleton(_ =>
             {
-                var json = File.ReadAllText(firebaseCredentialPath);
+                var json = File.ReadAllText("firebase-service-account.json");
                 return new FirestoreDbBuilder
                 {
-                    ProjectId = firebaseProjectId,
+                    ProjectId = builder.Configuration["Firebase:ProjectId"],
                     JsonCredentials = json
                 }.Build();
             });
@@ -42,8 +39,9 @@ namespace LocationService
             builder.Services.AddCors(opts => opts.AddPolicy("AllowAll", p =>
                 p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
-            // JWT Authentication using Firebase
-            var authority = $"https://securetoken.google.com/{firebaseProjectId}";
+            // — JWT Bearer (Firebase Issuer/Audience)
+            var projectId = builder.Configuration["Firebase:ProjectId"];
+            var authority = $"https://securetoken.google.com/{projectId}";
             builder.Services
                 .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(opts =>
@@ -54,7 +52,7 @@ namespace LocationService
                         ValidateIssuer = true,
                         ValidIssuer = authority,
                         ValidateAudience = true,
-                        ValidAudience = firebaseProjectId,
+                        ValidAudience = projectId,
                         ValidateLifetime = true
                     };
                 });

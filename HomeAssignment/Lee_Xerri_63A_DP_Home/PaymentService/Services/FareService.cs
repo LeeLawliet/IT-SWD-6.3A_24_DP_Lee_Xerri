@@ -20,8 +20,17 @@ namespace PaymentService.Fares
             double depLat, double depLng,
             double arrLat, double arrLng)
         {
+            // reduce errors from Taxi API end
+            depLat = Math.Round(depLat, 2);
+            depLng = Math.Round(depLng, 2);
+            arrLat = Math.Round(arrLat, 2);
+            arrLng = Math.Round(arrLng, 2);
+
             // build the query as the Taxi Fare Calculator expects:
-            var qs = $"?dep_lat={depLat}&dep_lng={depLng}&arr_lat={arrLat}&arr_lng={arrLng}";
+            var qs = $"?dep_lat={depLat}"
+                    + $"&dep_lng={depLng}"
+                    + $"&arr_lat={arrLat}"
+                    + $"&arr_lng={arrLng}";
 
             // call the external API (HttpClient already has Host & Key headers)
             var resp = await _http.GetAsync($"search-geo{qs}");
