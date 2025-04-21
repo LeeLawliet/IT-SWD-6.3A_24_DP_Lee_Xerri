@@ -20,17 +20,14 @@ namespace PaymentService.Fares
             double depLat, double depLng,
             double arrLat, double arrLng)
         {
-            // Build the query exactly as the Taxi Fare Calculator expects:
-            var qs = $"?dep_lat={depLat}"
-                   + $"&dep_lng={depLng}"
-                   + $"&arr_lat={arrLat}"
-                   + $"&arr_lng={arrLng}";
+            // build the query as the Taxi Fare Calculator expects:
+            var qs = $"?dep_lat={depLat}&dep_lng={depLng}&arr_lat={arrLat}&arr_lng={arrLng}";
 
-            // Call the external API (HttpClient already has Host & Key headers)
+            // call the external API (HttpClient already has Host & Key headers)
             var resp = await _http.GetAsync($"search-geo{qs}");
             resp.EnsureSuccessStatusCode();
 
-            // Parse the JSON, pull out the first fare's price_in_cents
+            // retrieve the fare's price_in_cents
             var root = await resp.Content.ReadFromJsonAsync<JsonElement>();
             var journey = root.GetProperty("journey");
             var fares = journey.GetProperty("fares").EnumerateArray();
@@ -41,7 +38,7 @@ namespace PaymentService.Fares
 
             var cents = dayFare.GetProperty("price_in_cents").GetInt32();
 
-            // Convert to major units (e.g. dollars/euros)
+            // convert to major unit
             return cents / 100.0;
         }
     }

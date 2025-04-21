@@ -35,7 +35,11 @@ namespace LocationService.Controllers
         [HttpGet]
         public async Task<IActionResult> List()
         {
-            var uid = GetUid(); if (uid == null) return Unauthorized();
+            var uid = GetUid();
+            if (uid == null)
+            {
+                return Unauthorized();
+            }
             var list = await _locSvc.GetAllAsync(uid);
             return Ok(list);
         }
@@ -51,9 +55,13 @@ namespace LocationService.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(string id, [FromBody] CreateLocationDTO dto)
         {
-            var uid = GetUid(); if (uid == null) return Unauthorized();
+            var uid = GetUid();
+            if (uid == null)
+            {
+                return Unauthorized();
+            }
             await _locSvc.UpdateAsync(uid, id, dto);
-            return NoContent();
+            return Ok($"ID : {id}\nResult: Successfully changed to \"{dto.Name}\".");
         }
 
         [HttpDelete("{id}")]
@@ -61,15 +69,19 @@ namespace LocationService.Controllers
         {
             var uid = GetUid(); if (uid == null) return Unauthorized();
             await _locSvc.DeleteAsync(uid, id);
-            return NoContent();
+            return Ok($"ID : {id}\nResult: Successfully Deleted.");
         }
 
         [HttpGet("{id}/weather")]
         public async Task<IActionResult> Weather(string id)
         {
-            var uid = GetUid(); if (uid == null) return Unauthorized();
+            var uid = GetUid();
+            if (uid == null)
+            {
+                return Unauthorized();
+            }
             var locDto = await _locSvc.GetByIdAsync(uid, id);
-            var forecast = await _locSvc.GetWeatherAsync(locDto.Address);
+            var forecast = await _locSvc.GetWeatherAsync(locDto.Name);
             return Ok(forecast);
         }
     }

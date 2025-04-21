@@ -1,4 +1,5 @@
-﻿using FirebaseAdmin;
+﻿using BookingService.Services;
+using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Firestore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -66,6 +67,9 @@ namespace BookingService
 
             // register FirebaseAuth for token verification
             builder.Services.AddSingleton(FirebaseAdmin.Auth.FirebaseAuth.DefaultInstance);
+
+            builder.Services.AddScoped<BookingService.Services.IBookingService,
+                           BookingService.Services.BookingService>();
 
             // HttpClient for Auth REST calls
             builder.Services.AddHttpClient();

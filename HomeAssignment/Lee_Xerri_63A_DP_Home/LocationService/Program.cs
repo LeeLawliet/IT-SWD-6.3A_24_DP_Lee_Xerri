@@ -61,16 +61,13 @@ namespace LocationService
             builder.Services.AddAuthorization();
 
             // WeatherAPI.com client for forecast
-            builder.Services.AddHttpClient("WeatherAPI", client =>
+            builder.Services.AddHttpClient<ILocationService, LocationService.Services.LocationService>(client =>
             {
                 var cfg = builder.Configuration.GetSection("RapidApi:WeatherApi");
                 client.BaseAddress = new Uri($"https://{cfg["Host"]}/");
                 client.DefaultRequestHeaders.Add("X-RapidAPI-Host", cfg["Host"]);
                 client.DefaultRequestHeaders.Add("X-RapidAPI-Key", cfg["Key"]);
             });
-
-            // LocationService DI
-            builder.Services.AddScoped<ILocationService, LocationService.Services.LocationService>();
 
             // Controllers and Swagger
             builder.Services.AddControllers();
