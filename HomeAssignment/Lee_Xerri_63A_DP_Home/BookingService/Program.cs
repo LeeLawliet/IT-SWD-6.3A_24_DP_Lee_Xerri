@@ -14,6 +14,9 @@ namespace BookingService
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            builder.Logging.ClearProviders();
+            builder.Logging.AddConsole();
+
             // Initialize Firebase SDK
             FirebaseApp.Create(new AppOptions
             {
@@ -56,6 +59,11 @@ namespace BookingService
                     };
                 });
             builder.Services.AddAuthorization();
+
+            builder.Services.AddHttpClient("CustomerAPI", client =>
+            {
+                client.BaseAddress = new Uri(builder.Configuration["CustomerService:BaseUrl"]!);
+            });
 
             // add Swagger with Bearer auth scheme
             builder.Services.AddSwaggerGen(c =>

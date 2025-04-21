@@ -108,13 +108,13 @@ namespace PaymentService.Controllers
             // Checking for 3 booking discount
             var userRef = _db.Collection("users").Document(uid);
             var userSnap = await userRef.GetSnapshotAsync();
-            bool discountAvailable = userSnap.TryGetValue("discountAvailable", out bool avail) && avail;
+            bool discountAvailable = userSnap.TryGetValue("DiscountAvailable", out bool avail) && avail;
             double discount = discountAvailable ? 0.3 : 1.0; // 70% discount if user has paid 3 rides
             
             if (discountAvailable)
             {
                 // mark discount as used
-                await userRef.UpdateAsync("discountAvailable", false);
+                await userRef.UpdateAsync("DiscountAvailable", false);
             }
 
             // total
@@ -148,7 +148,7 @@ namespace PaymentService.Controllers
             if (paymentsSnap.Count == 3)
             {
                 // flag their next ride discount
-                await userRef.UpdateAsync("discountAvailable", true);
+                await userRef.UpdateAsync("DiscountAvailable", true);
 
                 // send inbox notification via CustomerService
                 await userClient.PostAsJsonAsync(
