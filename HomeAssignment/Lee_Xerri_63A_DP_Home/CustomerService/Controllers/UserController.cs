@@ -1,8 +1,11 @@
 ﻿using CustomerService.Services;
 using FirebaseAdmin.Auth;
 using LeeXerri_CustomerService.DTO;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace LeeXerri_CustomerService.Controllers
@@ -20,16 +23,12 @@ namespace LeeXerri_CustomerService.Controllers
             _auth = auth;
         }
 
-        private async Task<string?> ValidateTokenAsync(string bearer)
-        {
-            if (string.IsNullOrEmpty(bearer) || !bearer.StartsWith("Bearer "))
-                return null;
+        // read the UID out of the validated JWT
+        private string? GetUid() =>
+            User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
 
-            var token = bearer.Substring("Bearer ".Length);
-            var decoded = await _auth.VerifyIdTokenAsync(token);
-            return decoded.Uid;
-        }
-
+        [AllowAnonymous]
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDTO dto)
         {
@@ -37,6 +36,7 @@ namespace LeeXerri_CustomerService.Controllers
             return Ok(new { uid, email, username });
         }
 
+        [AllowAnonymous]
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDTO dto)
         {
@@ -51,14 +51,12 @@ namespace LeeXerri_CustomerService.Controllers
             }
         }
 
+        [Authorize]
         [HttpGet("{uid}")]
-        public async Task<IActionResult> GetProfile(
-            [FromHeader(Name = "Authorization")] string authHeader,
-            string uid)
+        public async Task<IActionResult> GetProfile(string uid)
         {
-            var me = await ValidateTokenAsync(authHeader);
-            if (me == null || me != uid)
-                return Forbid();
+            var me = GetUid();
+            if (me == null || me != uid) return Forbid();
 
             try
             {
@@ -71,29 +69,23 @@ namespace LeeXerri_CustomerService.Controllers
             }
         }
 
-
+        [Authorize]
         [HttpPost("{uid}/notifications")]
-        public async Task<IActionResult> SendNotification(
-            [FromHeader(Name = "Authorization")] string authHeader,
-            string uid,
-            [FromBody] string message)
+        public async Task<IActionResult> SendNotification(string uid, [FromBody] string message)
         {
-            var me = await ValidateTokenAsync(authHeader);
-            if (me == null || me != uid)
-                return Forbid();
+            var me = GetUid();
+            if (me == null || me != uid) return Forbid();
 
             await _svc.SendNotificationAsync(uid, message);
             return Ok();
         }
 
+        [Authorize]
         [HttpGet("{uid}/notifications")]
-        public async Task<IActionResult> GetNotifications(
-            [FromHeader(Name = "Authorization")] string authHeader,
-            string uid)
+        public async Task<IActionResult> GetNotifications(string uid)
         {
-            var me = await ValidateTokenAsync(authHeader);
-            if (me == null || me != uid)
-                return Forbid();
+            var me = GetUid();
+            if (me == null || me != uid) return Forbid();
 
             var notes = await _svc.GetNotificationsAsync(uid);
             return Ok(notes);

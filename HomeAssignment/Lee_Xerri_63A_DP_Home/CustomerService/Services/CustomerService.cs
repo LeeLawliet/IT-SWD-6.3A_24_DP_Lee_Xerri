@@ -67,10 +67,16 @@ namespace CustomerService.Services
         {
             var url = $"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={_apiKey}";
             var payload = new { email = dto.Email, password = dto.Password, returnSecureToken = true };
+
             var resp = await _http.PostAsJsonAsync(url, payload);
             if (!resp.IsSuccessStatusCode)
                 throw new UnauthorizedAccessException("Invalid credentials.");
-            return await resp.Content.ReadFromJsonAsync<SignInResponse>()!;
+
+            var result = await resp.Content.ReadFromJsonAsync<SignInResponse>();
+            if (result is null || string.IsNullOrWhiteSpace(result.idToken))
+                throw new UnauthorizedAccessException("Login failed to return a token.");
+
+            return result;
         }
 
         public async Task<(User User, IEnumerable<Notification> Inbox)> GetProfileAsync(string uid)

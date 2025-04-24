@@ -47,7 +47,14 @@ namespace LeeXerri_CustomerService
                     ValidateLifetime = true
                 };
             });
-            builder.Services.AddAuthorization();
+
+            builder.Services.AddAuthorization(options =>
+            {
+                // This ensures [AllowAnonymous] works as expected
+                options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+                    .RequireAssertion(_ => true)
+                    .Build();
+            });
 
             // — CORS
             builder.Services.AddCors(opts =>
@@ -92,6 +99,14 @@ namespace LeeXerri_CustomerService
             app.UseCors("AllowAll");
             app.UseSwagger();
             app.UseSwaggerUI();
+            app.Use(async (context, next) =>
+            {
+                Console.WriteLine($"Path: {context.Request.Path}");
+                Console.WriteLine($"IsAuthenticated: {context.User.Identity?.IsAuthenticated}");
+                Console.WriteLine($"AuthType: {context.User.Identity?.AuthenticationType}");
+                Console.WriteLine($"Claims: {string.Join(", ", context.User.Claims.Select(c => $"{c.Type}={c.Value}"))}");
+                await next();
+            });
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();
