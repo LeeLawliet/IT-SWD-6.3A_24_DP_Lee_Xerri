@@ -89,7 +89,8 @@ namespace PaymentService.Controllers
             var (endLat, endLon) = await _fareSvc.GetCoordinatesAsync(booking.EndLocation);
             
             // fare lookup
-            var baseFare = await _fareSvc.GetBaseFareAsync(startLat, startLon, endLat, endLon);
+            // CHANGE THIS WHEN TAXIFARE API IS BACK UP!!!
+            // var baseFare = await _fareSvc.GetBaseFareAsync(startLat, startLon, endLat, endLon);
 
             // multipliers
             if (!CabMult.TryGetValue(booking.CabType, out var cabM))
@@ -101,19 +102,24 @@ namespace PaymentService.Controllers
                           throw new InvalidOperationException("Too many passengers");
 
             // Checking for 3 booking discount
-            var userRef = _db.Collection("users").Document(uid);
-            var userSnap = await userRef.GetSnapshotAsync();
-            bool discountAvailable = userSnap.TryGetValue("DiscountAvailable", out bool avail) && avail;
-            double discount = discountAvailable ? 0.3 : 1.0; // 70% discount if user has paid 3 rides
-            
+            var discountDoc = await _db.Collection("users")
+                .Document(uid)
+                .Collection("notifications")
+                .Document("discount")
+                .GetSnapshotAsync();
+
+            bool discountAvailable = discountDoc.Exists;
+
+            double discount = 1.0;
+
             if (discountAvailable)
             {
-                // mark discount as used
-                await userRef.UpdateAsync("DiscountAvailable", false);
+                discount = 0.3; // apply 70% discount
+                await discountDoc.Reference.DeleteAsync(); // remove so it's one-time use
             }
 
             // total
-            var total = baseFare * cabM * dayM * paxM * discount;
+            var total = /* baseFare // CHANGE THIS WHEN TAXIFARE API IS BACK UP!!! */ 20 * cabM * dayM * paxM * discount;
 
             // record payment
             var payment = new Models.Payment
@@ -121,7 +127,7 @@ namespace PaymentService.Controllers
                 Id = Guid.NewGuid().ToString(),
                 BookingId = booking.Id,
                 UserUid = uid,
-                CabFare = baseFare,
+                CabFare = /* baseFare // CHANGE THIS WHEN TAXIFARE API IS BACK UP!!!*/ 20,
                 CabMultiplier = cabM,
                 DaytimeMultiplier = dayM,
                 PassengersMultiplier = paxM,
@@ -136,27 +142,12 @@ namespace PaymentService.Controllers
              .Document(booking.Id)
              .UpdateAsync("Paid", true);
 
-            var paymentsSnap = await _db
-               .Collection("payments")
-               .WhereEqualTo("UserUid", uid)
-               .GetSnapshotAsync();
-            if (paymentsSnap.Count == 3)
-            {
-                // flag their next ride discount
-                await userRef.UpdateAsync("DiscountAvailable", true);
-
-                // send inbox notification via CustomerService
-                await userClient.PostAsJsonAsync(
-                    $"/api/User/{uid}/notifications",
-                    "Congrats—you’ve completed 3 bookings and earned a 70% discount on your next ride!");
-            }
-
             // return DTO
             return Ok(new PaymentDTO
             {
                 Id = payment.Id,
                 BookingId = payment.BookingId,
-                TotalPrice = payment.TotalPrice,
+                TotalPrice = Math.Round(payment.TotalPrice, 2),
                 CreatedAt = payment.CreatedAt.ToDateTime()
             });
         }

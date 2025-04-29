@@ -1,7 +1,7 @@
 ﻿using Google.Cloud.Firestore;
 using Microsoft.AspNetCore.Mvc;
 
-namespace LeeXerri_CustomerService.Models
+namespace CustomerService.Models
 {
     [FirestoreData]
     public class Notification

@@ -1,4 +1,4 @@
-﻿namespace LeeXerri_CustomerService.DTO
+﻿namespace CustomerService.DTO
 {
     public class RegisterDTO
     {

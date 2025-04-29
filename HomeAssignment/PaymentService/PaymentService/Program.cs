@@ -2,10 +2,12 @@
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Firestore;
 using Google.Cloud.Firestore.V1;
+using Google.Cloud.PubSub.V1;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using PaymentService.Fares;
+using PaymentService.Services;
 
 
 namespace LeeXerri_PaymentService
@@ -40,6 +42,14 @@ namespace LeeXerri_PaymentService
             // — CORS (for localhost testing)
             builder.Services.AddCors(opts => opts.AddPolicy("AllowAll", p =>
                 p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+
+            builder.Services.AddSingleton<SubscriberServiceApiClient>(sp =>
+            {
+                var creds = GoogleCredential.FromFile("gcp-service-account.json");
+                return new SubscriberServiceApiClientBuilder { Credential = creds }.Build();
+            });
+
+            builder.Services.AddHostedService<DiscountSubscriberService>();
 
             // — JWT Bearer (Firebase Issuer/Audience)
             var projectId = builder.Configuration["Firebase:ProjectId"];

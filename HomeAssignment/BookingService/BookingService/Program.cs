@@ -1,8 +1,12 @@
-﻿using BookingService.Services;
+﻿using BookingService.Models;
+using BookingService.Services;
 using FirebaseAdmin;
+using FirebaseAdmin.Auth;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Firestore;
+using Google.Cloud.PubSub.V1;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -17,35 +21,46 @@ namespace BookingService
             builder.Logging.ClearProviders();
             builder.Logging.AddConsole();
 
-            // Initialize Firebase SDK
-            FirebaseApp.Create(new AppOptions
-            {
-                Credential = GoogleCredential.FromFile("firebase-service-account.json")
-            });
+            // Load Firebase and PubSub credentials from separate files
+            var firebaseCreds = GoogleCredential.FromFile("firebase-service-account.json");
+            var pubsubCreds = GoogleCredential.FromFile("gcp-service-account.json");
 
-            // Firestore registration
-            builder.Services.AddSingleton(_ =>
+            // Initialize Firestore manually (not registered yet)
+            var db = new FirestoreDbBuilder
             {
-                var json = File.ReadAllText("firebase-service-account.json");
-                return new FirestoreDbBuilder
+                ProjectId = "itswd63a24dpleexerri",
+                Credential = firebaseCreds
+            }.Build();
+
+            // Create the Pub/Sub publisher synchronously
+            var pubsubClient = new PublisherServiceApiClientBuilder
+            {
+                Credential = pubsubCreds
+            }.Build();
+
+            // FirebaseAuth (Firebase SDK requires Create)
+            FirebaseApp.Create(new AppOptions { Credential = firebaseCreds });
+
+            // Register services
+            builder.Services.AddSingleton(db);
+            builder.Services.AddSingleton(pubsubClient);
+            builder.Services.AddSingleton(sp =>
+            {
+                var config = builder.Configuration.GetSection("PubSub");
+                return new PubSubTopics
                 {
-                    ProjectId = builder.Configuration["Firebase:ProjectId"],
-                    JsonCredentials = json
-                }.Build();
+                    DiscountTopic = TopicName.FromProjectTopic(config["ProjectId"], config["DiscountTopicId"]),
+                    BookingTopic = TopicName.FromProjectTopic(config["ProjectId"], config["BookingTopicId"])
+                };
             });
 
-            // FirebaseAuth
-            builder.Services.AddSingleton(FirebaseAdmin.Auth.FirebaseAuth.DefaultInstance);
+            builder.Services.AddSingleton(FirebaseAuth.DefaultInstance);
+            builder.Services.AddScoped<IBookingService, BookingService.Services.BookingService>();
 
-            // CORS (allow frontend or Swagger origins)
-            builder.Services.AddCors(opts => opts.AddPolicy("AllowAll", p =>
-                p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
-
-            // — JWT Bearer (Firebase Issuer/Audience)
+            // JWT Authentication
             var projectId = builder.Configuration["Firebase:ProjectId"];
             var authority = $"https://securetoken.google.com/{projectId}";
-            builder.Services
-                .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(opts =>
                 {
                     opts.Authority = authority;
@@ -60,12 +75,15 @@ namespace BookingService
                 });
             builder.Services.AddAuthorization();
 
+            // HttpClients
             builder.Services.AddHttpClient("CustomerAPI", client =>
             {
                 client.BaseAddress = new Uri(builder.Configuration["CustomerService:BaseUrl"]!);
             });
+            builder.Services.AddHttpClient();
 
-            // add Swagger with Bearer auth scheme
+            // Swagger
+            builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>
             {
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -93,40 +111,14 @@ namespace BookingService
                 });
             });
 
-            // register FirestoreDb
-            builder.Services.AddSingleton(_ =>
-            {
-                var jsonPath = Path.Combine(AppContext.BaseDirectory, "firebase-service-account.json");
-                var json = File.ReadAllText(jsonPath);
-                var fbBuilder = new FirestoreDbBuilder
-                {
-                    ProjectId = "itswd63a24dpleexerri",
-                    JsonCredentials = json
-                };
-                return fbBuilder.Build();
-            });
-
-            // register FirebaseAuth for token verification
-            builder.Services.AddSingleton(FirebaseAdmin.Auth.FirebaseAuth.DefaultInstance);
-
-            builder.Services.AddScoped<BookingService.Services.IBookingService,
-                           BookingService.Services.BookingService>();
-
-            // HttpClient for Auth REST calls
-            builder.Services.AddHttpClient();
-
-            // MVC + Swagger UI
             builder.Services.AddControllers();
-            builder.Services.AddEndpointsApiExplorer();
 
+            // Build and run
             var app = builder.Build();
-
             app.UseSwagger();
             app.UseSwaggerUI();
-
             app.UseAuthentication();
             app.UseAuthorization();
-
             app.MapControllers();
             app.Run();
         }

@@ -45,3 +45,6 @@ HomeAssignment/Lee_Xerri_63A_DP_Home/LocationService/appsettings.json
 HomeAssignment/Lee_Xerri_63A_DP_Home/BookingService/appsettings.json
 HomeAssignment/Lee_Xerri_63A_DP_Home/CustomerService/appsettings.json
 HomeAssignment/Lee_Xerri_63A_DP_Home/PaymentService/appsettings.json
+HomeAssignment/BookingService/BookingService/gcp-service-account.json
+HomeAssignment/CustomerService/CustomerService/gcp-service-account.json
+HomeAssignment/PaymentService/PaymentService/gcp-service-account.json

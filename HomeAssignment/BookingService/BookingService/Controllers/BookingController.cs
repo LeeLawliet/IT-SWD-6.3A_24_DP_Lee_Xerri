@@ -3,11 +3,14 @@ using BookingService.Models;
 using BookingService.Services;
 using FirebaseAdmin.Auth;
 using Google.Cloud.Firestore;
+using Google.Cloud.PubSub.V1;
+using Google.Protobuf;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Net.Http.Headers;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace BookingService.Controllers
@@ -21,14 +24,26 @@ namespace BookingService.Controllers
         private readonly FirestoreDb _db;
         private readonly IHttpClientFactory _httpFactory;
         private readonly ILogger<BookingController> _logger;
+        private readonly PublisherServiceApiClient _publisher;
+        private readonly TopicName _discountTopic;
+        private readonly TopicName _bookingTopic;
 
-        public BookingController(IBookingService svc, FirebaseAuth auth, IHttpClientFactory httpFactory, FirestoreDb db, ILogger<BookingController> logger)
+        public BookingController(IBookingService svc,
+            FirebaseAuth auth,
+            IHttpClientFactory httpFactory,
+            FirestoreDb db,
+            ILogger<BookingController> logger,
+            PublisherServiceApiClient publisher,
+            PubSubTopics topics)
         {
             _svc = svc;
             _auth = auth;
             _httpFactory = httpFactory;
             _db = db;
             _logger = logger;
+            _publisher = publisher;
+            _discountTopic = topics.DiscountTopic;
+            _bookingTopic = topics.BookingTopic;
         }
 
         private static class CabTypeRules
@@ -83,35 +98,61 @@ namespace BookingService.Controllers
             // delegate to service
             var bookingId = await _svc.CreateAsync(uid, dto);
 
-            // after booking is made, start user notification process...
-            // creation of customer service client
-            var userClient = _httpFactory.CreateClient("CustomerAPI");
-            var bearer = Request.Headers["Authorization"].FirstOrDefault()?.Substring("Bearer ".Length);
-            if (string.IsNullOrEmpty(bearer))
-            {
-                return Unauthorized("Missing token");
-            }
-            userClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+            // DISCOUNT CHECK
+            // retrieve user total bookings
+            var snap = await _db
+                .Collection("bookings")
+                .WhereEqualTo("UserUid", uid)
+                .GetSnapshotAsync();
 
+            if (snap.Count == 3) // third booking just created
+            {
+                var payload = new
+                {
+                    Uid = uid,
+                    BookingId = bookingId,
+                    Message = "User has made their 3rd booking."
+                };
+
+                string json = JsonSerializer.Serialize(payload);
+                var pubsubMessage = new PubsubMessage
+                {
+                    Data = ByteString.CopyFromUtf8(json),
+                    Attributes = { { "discount", "discount" } }
+                };
+
+                await _publisher.PublishAsync(_discountTopic, new[] { pubsubMessage });
+                _logger.LogInformation("Published third-booking event for UID: {uid}", uid);
+            }
+
+            // CAB ARRIVAL
             // run arrival notification task asynchronously
             _ = Task.Run(async () =>
             {
                 try
                 {
                     await Task.Delay(TimeSpan.FromMinutes(3));
-                    Console.WriteLine($"Starting arrival notification process...");
-                    var message =
-                        $"Your cab is ready for pickup! Here are your booking details:\n" +
-                        $"Booking ID: \"{bookingId}\".\n" +
-                        $"Start Location: \"{dto.StartLocation}\".\nEnd Location: \"{dto.EndLocation}\".\n" +
-                        $"Thank you for using our service.";
-                    await userClient.PostAsJsonAsync(
-                        $"/api/User/{uid}/notifications",
-                        message);
+
+                    var message = new
+                    {
+                        Uid = uid,
+                        BookingId = bookingId,
+                        Message = $"Your cab is ready for pickup.\nBooking ID: {bookingId}\nFrom: {dto.StartLocation}\nTo: {dto.EndLocation}"
+                    };
+
+                    var json = JsonSerializer.Serialize(message);
+                    var pubsubMessage = new PubsubMessage
+                    {
+                        Data = ByteString.CopyFromUtf8(json),
+                        Attributes = { { "event", "cab_ready" } }
+                    };
+
+                    await _publisher.PublishAsync(_bookingTopic, new[] { pubsubMessage });
+                    _logger.LogInformation($"Published cab ready message to booking-topic for UID: {uid}");
                 }
-                catch (Exception e)
+                catch (Exception ex)
                 {
-                   _logger.LogError(e, $"Failed to start async");
+                    _logger.LogError(ex, "Failed to publish cab ready message.");
                 }
             });
 

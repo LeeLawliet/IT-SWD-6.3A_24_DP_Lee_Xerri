@@ -1,13 +1,15 @@
+using CustomerService.Models;
 using CustomerService.Services;
 using FirebaseAdmin;
 using FirebaseAdmin.Auth;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Firestore;
+using Google.Cloud.PubSub.V1;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
-namespace LeeXerri_CustomerService
+namespace CustomerService
 {
     public class Program
     {
@@ -65,6 +67,23 @@ namespace LeeXerri_CustomerService
                 )
             );
 
+            builder.Services.AddSingleton<SubscriberServiceApiClient>(sp =>
+            {
+                var creds = GoogleCredential.FromFile("gcp-service-account.json");
+                return new SubscriberServiceApiClientBuilder { Credential = creds }.Build();
+            });
+
+            builder.Services.AddSingleton(sp =>
+            {
+                var config = builder.Configuration.GetSection("PubSub");
+                return new PubSubSubscriptions
+                {
+                    DiscountTopicSub = SubscriptionName.FromProjectSubscription(config["ProjectId"], config["DiscountTopicId"]),
+                    BookingTopicSub = SubscriptionName.FromProjectSubscription(config["ProjectId"], config["BookingTopicId"])
+                };
+            });
+
+            builder.Services.AddHostedService<SubscriberService>();
             builder.Services.AddHttpClient();
             builder.Services.AddScoped<ICustomerService, CustomerService.Services.CustomerService>();
 

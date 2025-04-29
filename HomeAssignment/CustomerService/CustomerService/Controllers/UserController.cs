@@ -1,6 +1,6 @@
 ﻿using CustomerService.Services;
 using FirebaseAdmin.Auth;
-using LeeXerri_CustomerService.DTO;
+using CustomerService.DTO;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -8,7 +8,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
-namespace LeeXerri_CustomerService.Controllers
+namespace CustomerService.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]

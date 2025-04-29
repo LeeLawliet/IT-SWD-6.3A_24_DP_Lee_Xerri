@@ -64,5 +64,4 @@ namespace PaymentService.Fares
             return cents / 100.0;
         }
     }
-
 }

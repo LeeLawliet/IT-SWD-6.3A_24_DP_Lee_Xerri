@@ -1,6 +1,6 @@
-@LeeXerri_CustomerService_HostAddress = http://localhost:5018
+@CustomerService_HostAddress = http://localhost:5018
 
-GET {{LeeXerri_CustomerService_HostAddress}}/swagger/
+GET {{CustomerService_HostAddress}}/swagger/
 Accept: application/json
 
 ###

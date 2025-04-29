@@ -1,7 +1,7 @@
 ﻿using FirebaseAdmin.Auth;
 using Google.Cloud.Firestore;
-using LeeXerri_CustomerService.DTO;
-using LeeXerri_CustomerService.Models;
+using CustomerService.DTO;
+using CustomerService.Models;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
@@ -53,8 +53,7 @@ namespace CustomerService.Services
             {
                 Uid = userRec.Uid,
                 Email = dto.Email,
-                Username = dto.Username,
-                DiscountAvailable = false
+                Username = dto.Username
             };
             await _db.Collection("users")
                      .Document(user.Uid)
