@@ -4,15 +4,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PaymentService.DTO;
 using PaymentService.Fares;
-using LocationService.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Linq;
-using BookingService.DTO;
 using System.Text.Json;
-using BookingService.Services;
-using BookingService.Models;
 using System.Net;
 
 namespace PaymentService.Controllers
@@ -22,11 +18,11 @@ namespace PaymentService.Controllers
     [Authorize]
     public class PaymentController : ControllerBase
     {
-        private readonly ILocationService _locSvc;
         private readonly FirestoreDb _db;
         private readonly FirebaseAuth _auth;
         private readonly IFareService _fareSvc;
         private readonly IHttpClientFactory _httpFactory;
+        
 
         private static readonly IReadOnlyDictionary<string, double> CabMult = new Dictionary<string, double>
         {
@@ -36,13 +32,12 @@ namespace PaymentService.Controllers
         };
 
         public PaymentController(
-            ILocationService locSvc,
             FirestoreDb db,
             FirebaseAuth auth,
             IFareService fareSvc,
             IHttpClientFactory httpFactory)
         {
-            _locSvc = locSvc;
+            
             _db = db;
             _auth = auth;
             _fareSvc = fareSvc;
@@ -82,7 +77,7 @@ namespace PaymentService.Controllers
             }
 
             bookingResp.EnsureSuccessStatusCode();
-            var booking = await bookingResp.Content.ReadFromJsonAsync<BookingDTO>()
+            var booking = await bookingResp.Content.ReadFromJsonAsync<BookingHttpDTO>()
                           ?? throw new InvalidOperationException("Invalid booking data.");
 
             if (booking.Paid)
@@ -90,9 +85,9 @@ namespace PaymentService.Controllers
                 return BadRequest("Booking already paid.");
             }
 
-            var (startLat, startLon) = await _locSvc.GetCoordinatesAsync(booking.StartLocation);
-            var (endLat, endLon) = await _locSvc.GetCoordinatesAsync(booking.EndLocation);
-
+            var (startLat, startLon) = await _fareSvc.GetCoordinatesAsync(booking.StartLocation);
+            var (endLat, endLon) = await _fareSvc.GetCoordinatesAsync(booking.EndLocation);
+            
             // fare lookup
             var baseFare = await _fareSvc.GetBaseFareAsync(startLat, startLon, endLat, endLon);
 

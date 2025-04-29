@@ -2,7 +2,6 @@
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Firestore;
 using Google.Cloud.Firestore.V1;
-using LocationService.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -80,9 +79,9 @@ namespace LeeXerri_PaymentService
             });
 
             //   * LocationService (typed client)
-            builder.Services.AddHttpClient<ILocationService, LocationService.Services.LocationService>((sp, client) =>
+            builder.Services.AddHttpClient("WeatherAPI", (sp, client) =>
             {
-                var cfg = sp.GetRequiredService<IConfiguration>().GetSection("RapidApi:WeatherApi");
+                var cfg = sp.GetRequiredService<IConfiguration>().GetSection("RapidApi:WeatherAPI");
                 client.BaseAddress = new Uri($"https://{cfg["Host"]}/");
                 client.DefaultRequestHeaders.Add("X-RapidAPI-Host", cfg["Host"]);
                 client.DefaultRequestHeaders.Add("X-RapidAPI-Key", cfg["Key"]);

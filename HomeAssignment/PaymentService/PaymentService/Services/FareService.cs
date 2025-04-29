@@ -5,15 +5,28 @@ namespace PaymentService.Fares
 {
     public interface IFareService
     {
+        Task<(double Lat, double Lon)> GetCoordinatesAsync(string name);
         Task<double> GetBaseFareAsync(double depLat, double depLng, double arrLat, double arrLng);
     }
 
     public class FareService : IFareService
     {
         private readonly HttpClient _http;
-        public FareService(HttpClient http)
+        private readonly HttpClient _weather;
+        private readonly IHttpClientFactory _httpFactory;
+
+        public FareService(HttpClient http, IHttpClientFactory httpFactory)
         {
             _http = http;
+            _httpFactory = httpFactory;
+            _weather = httpFactory.CreateClient("WeatherAPI");
+        }
+
+        public async Task<(double Lat, double Lon)> GetCoordinatesAsync(string name)
+        {
+            var root = await _weather.GetFromJsonAsync<JsonElement>($"forecast.json?q={Uri.EscapeDataString(name)}");
+            var loc = root.GetProperty("location");
+            return (loc.GetProperty("lat").GetDouble(), loc.GetProperty("lon").GetDouble());
         }
 
         public async Task<double> GetBaseFareAsync(
@@ -21,10 +34,10 @@ namespace PaymentService.Fares
             double arrLat, double arrLng)
         {
             // reduce errors from Taxi API end
-            depLat = Math.Round(depLat, 2);
-            depLng = Math.Round(depLng, 2);
-            arrLat = Math.Round(arrLat, 2);
-            arrLng = Math.Round(arrLng, 2);
+            depLat = Math.Round(depLat, 1);
+            depLng = Math.Round(depLng, 1);
+            arrLat = Math.Round(arrLat, 1);
+            arrLng = Math.Round(arrLng, 1);
 
             // build the query as the Taxi Fare Calculator expects:
             var qs = $"?dep_lat={depLat}"
