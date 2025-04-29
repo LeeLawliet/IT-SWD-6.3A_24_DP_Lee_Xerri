@@ -1,0 +1,43 @@
+{
+  "Routes": [
+    {
+      "DownstreamPathTemplate": "/api/Booking/{everything}",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "booking-service-url.a.run.app",
+          "Port": 443
+        }
+      ],
+      "UpstreamPathTemplate": "/booking/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/Payment/{everything}",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "payment-service-url.a.run.app",
+          "Port": 443
+        }
+      ],
+      "UpstreamPathTemplate": "/payment/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/User/{everything}",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "customer-service-url.a.run.app",
+          "Port": 443
+        }
+      ],
+      "UpstreamPathTemplate": "/customer/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ]
+    }
+  ],
+  "GlobalConfiguration": {
+    "BaseUrl": "https://gateway-url.a.run.app"
+  }
+}
