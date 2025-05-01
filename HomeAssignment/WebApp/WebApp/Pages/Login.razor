@@ -1,0 +1,32 @@
+﻿@page "/Login"
+
+@using WebApp.Services
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+<h3>Login</h3>
+<input @bind="Email" placeholder="Email" />
+<input @bind="Password" type="password" placeholder="Password" />
+<button @onclick="HandleLogin">Login</button>
+<p>@Error</p>
+
+@code {
+    private string Email = "";
+    private string Password = "";
+    private string Error = "";
+
+    private async Task HandleLogin()
+    {
+        Console.WriteLine($"Trying to log in with: {Email}, {Password}");
+
+        var success = await Auth.LoginAsync(Email, Password);
+        if (success)
+        {
+            Nav.NavigateTo("bookings");
+        }
+        else
+        {
+            Error = "Invalid credentials.";
+        }
+    }
+}
