@@ -1,0 +1,167 @@
+﻿@page "/bookings/current"
+@using WebApp.Services
+@using WebApp.Models
+@inject AuthService Auth
+@inject HttpClient Http
+
+@page "/bookings"
+
+<h3>Bookings</h3>
+
+<NavLink class="btn btn-primary" style="margin-bottom: 3%;" href="/bookings/create">Create Booking</NavLink>
+<br />
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+<div class="CurrentBookings">
+    <h1>
+        <button class="toggle-btn" @onclick="ToggleCurrent">
+            @(showCurrent ? "-" : "+")
+        </button>
+        Current Bookings
+    </h1>
+    @if(@showCurrent)
+    {
+        @if (currBookings == null)
+        {
+            <p>Loading...</p>
+        }
+        else if (currBookings.Count == 0)
+        {
+            <p>No pending bookings found.</p>
+        }
+        else
+        {
+            @foreach (var booking in currBookings)
+            {
+                <div class="booking-card">
+                    <p><strong>From:</strong> @booking.StartLocation</p>
+                    <p><strong>To:</strong> @booking.EndLocation</p>
+                    <p><strong>Date:</strong> @booking.DateTime</p>
+                    <p><strong>Cab:</strong> @booking.CabType</p>
+                    <p><strong>Passengers:</strong> @booking.Passengers</p>
+                    @if (!booking.Paid)
+                    {
+                        <button class="btn btn-primary" @onclick="() => Pay(booking.Id)">Pay</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-outline-primary">Paid</button>
+                    }
+                </div>
+            }
+        }
+    }
+</div>
+
+<div class="PastBookings">
+    <h1>
+        <button class="toggle-btn" @onclick="TogglePast">
+            @(showPast ? "-" : "+")
+        </button>
+        Past Bookings
+    </h1>
+
+    @if (@showPast)
+    {
+        @if (pastBookings == null)
+        {
+            <p>Loading...</p>
+        }
+        else if (pastBookings.Count == 0)
+        {
+            <p>No pending bookings found.</p>
+        }
+        else
+        {
+            @foreach (var booking in pastBookings)
+            {
+                <div class="booking-card">
+                    <p><strong>From:</strong> @booking.StartLocation</p>
+                    <p><strong>To:</strong> @booking.EndLocation</p>
+                    <p><strong>Date:</strong> @booking.DateTime</p>
+                    <p><strong>Cab:</strong> @booking.CabType</p>
+                    <p><strong>Passengers:</strong> @booking.Passengers</p>
+                    @if (!booking.Paid)
+                    {
+                        <button class="btn btn-primary" @onclick="() => Pay(booking.Id)">Pay</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-outline-primary">Paid</button>
+                    }
+                </div>
+            }
+        }
+    }
+</div>
+
+@code {
+    private bool showCurrent = false;
+    private bool showPast = false;
+    private void ToggleCurrent() => showCurrent = !showCurrent;
+    private void TogglePast() => showPast = !showPast;
+
+    private List<BookingDTO>? currBookings;
+    private List<BookingDTO>? pastBookings;
+    private string? errorMessage = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // retrieve current bookings
+        var currRequest = new HttpRequestMessage(HttpMethod.Get, "booking/current");
+        Auth.AttachToken(currRequest);
+        var currResponse = await Http.SendAsync(currRequest);
+        if (currResponse.IsSuccessStatusCode)
+        {
+            currBookings = await currResponse.Content.ReadFromJsonAsync<List<BookingDTO>>();
+        }
+        else
+        {
+            currBookings = new();
+        }
+        
+        // retrieve past bookings
+        var pastRequest = new HttpRequestMessage(HttpMethod.Get, "booking/past");
+        Auth.AttachToken(pastRequest);
+        var pastResponse = await Http.SendAsync(pastRequest);
+        if (pastResponse.IsSuccessStatusCode)
+        {
+            pastBookings = await pastResponse.Content.ReadFromJsonAsync<List<BookingDTO>>();
+        }
+        else
+        {
+            pastBookings = new();
+        }
+    }
+
+    private async Task Pay(string bookingId)
+    {
+        errorMessage = null; // reset previous errors
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "payment/pay")
+            {
+                Content = JsonContent.Create(new { bookingId })
+            };
+        Auth.AttachToken(request);
+
+        var response = await Http.SendAsync(request);
+        var content = await response.Content.ReadAsStringAsync();
+
+        if (response.IsSuccessStatusCode)
+        {
+            await OnInitializedAsync();
+        }
+        else
+        {
+            // Log to console for debugging
+            Console.WriteLine($"Payment failed: {response.StatusCode}");
+            Console.WriteLine($"Error: {content}");
+
+            errorMessage = "Payment failed. Please try again.";
+        }
+    }
+}

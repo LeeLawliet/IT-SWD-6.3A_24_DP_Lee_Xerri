@@ -1,0 +1,55 @@
+﻿@page "/payments"
+@using WebApp.Models
+@using WebApp.Services
+@inject HttpClient Http
+@inject AuthService Auth
+
+<h3>Payments</h3>
+
+@if (payments == null)
+{
+    <p>Loading payments...</p>
+}
+else if (payments.Count == 0)
+{
+    <p>No payments found.</p>
+}
+else
+{
+    @foreach (var payment in payments)
+    {
+        <div class="booking-card">
+            <p><strong>Payment ID:</strong> @payment.Id</p>
+            <p><strong>Booking ID:</strong> @payment.BookingId</p>
+            <p><strong>Total Price:</strong> €@payment.TotalPrice</p>
+            <p><strong>Date:</strong> @payment.CreatedAt.ToLocalTime().ToString("f")</p>
+        </div>
+    }
+}
+
+@code {
+    private List<PaymentDTO>? payments;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uid = Auth.GetUidFromToken();
+        if (uid == null)
+        {
+            payments = new();
+            return;
+        }
+
+        var request = new HttpRequestMessage(HttpMethod.Get, $"payment/{uid}");
+        Auth.AttachToken(request);
+        var response = await Http.SendAsync(request);
+
+        if (response.IsSuccessStatusCode)
+        {
+            payments = await response.Content.ReadFromJsonAsync<List<PaymentDTO>>();
+        }
+        else
+        {
+            payments = new();
+        }
+    }
+}

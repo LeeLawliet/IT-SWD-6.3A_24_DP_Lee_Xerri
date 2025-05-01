@@ -33,7 +33,7 @@ namespace BookingService.Services
                 UserUid = userUid,
                 StartLocation = dto.StartLocation,
                 EndLocation = dto.EndLocation,
-                DateTime = Timestamp.FromDateTime(DateTime.UtcNow),
+                DateTime = Timestamp.FromDateTime(DateTime.UtcNow.AddMinutes(10)), // add minutes to simulate a present booking
                 Passengers = dto.Passengers,
                 CabType = dto.CabType,
                 Paid = false

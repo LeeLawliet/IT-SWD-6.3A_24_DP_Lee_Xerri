@@ -1,5 +1,5 @@
 $loginBody = '{
-"email": "user@test1.com",
+"email": "a@a.com",
 "password": "password"}'
 
 $loginResponse = Invoke-RestMethod -Method POST -Uri "https://localhost:44305/customer/login" -ContentType "application/json" -Body $loginBody
@@ -10,26 +10,36 @@ $header = @{
     Authorization = "Bearer $($loginResponse.IdToken)"
 }
 
-$createBooking = '{
-  "startLocation": "Paola",
-  "endLocation": "Fgura",
-  "passengers": 5,
-  "cabType": "Premium"
-}'
+$payBooking = '
+{
+  "bookingId": "9c8f37f6-dc36-43d0-a22f-f7db17b54452"
+}
+'
+$payResponse = Invoke-RestMethod -Method POST -Uri "https://localhost:44374/api/Payment/pay" -ContentType "application/json" -Headers $header -Body $payBooking
 
-$createResponse = Invoke-RestMethod -Method POST -Uri "https://localhost:44305/booking" -ContentType "application/json" -Headers $header -Body $createBooking
+$payResponse = Invoke-RestMethod -Method POST -Uri "https://localhost:44305/payment/pay" -ContentType "application/json" -Headers $header -Body $payBooking
 
-write-host($createResponse)
+write-host($payResponse)
+# $createBooking = '{
+#   "startLocation": "Paola",
+#   "endLocation": "Fgura",
+#   "passengers": 5,
+#   "cabType": "Premium"
+# }'
 
-$getPastBooking = Invoke-RestMethod -Method GET -Uri "https://localhost:44305/booking/past" -ContentType "application/json" -Headers $header
+# $createResponse = Invoke-RestMethod -Method POST -Uri "https://localhost:44305/booking" -ContentType "application/json" -Headers $header -Body $createBooking
 
-$getPastBooking | ConvertTo-Json -Depth 10
+# write-host($createResponse)
 
-$bookingId = "0d50ddc4-54da-4f50-805c-e086021d7200"
-$body = '{
-"bookingId": "0d50ddc4-54da-4f50-805c-e086021d7200"
-}'
+# $getPastBooking = Invoke-RestMethod -Method GET -Uri "https://localhost:44305/booking/past" -ContentType "application/json" -Headers $header
 
-$getBookingById = Invoke-RestMethod -Method GET -Uri "https://localhost:44305/booking/0d50ddc4-54da-4f50-805c-e086021d7200" -ContentType "application/json" -Headers $header 
+# $getPastBooking | ConvertTo-Json -Depth 10
 
-$getBookingById | ConvertTo-Json -Depth 10
+# $bookingId = "0d50ddc4-54da-4f50-805c-e086021d7200"
+# $body = '{
+# "bookingId": "0d50ddc4-54da-4f50-805c-e086021d7200"
+# }'
+
+# $getBookingById = Invoke-RestMethod -Method GET -Uri "https://localhost:44305/booking/0d50ddc4-54da-4f50-805c-e086021d7200" -ContentType "application/json" -Headers $header 
+
+# $getBookingById | ConvertTo-Json -Depth 10

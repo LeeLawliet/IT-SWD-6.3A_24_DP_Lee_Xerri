@@ -10,6 +10,12 @@ a, .btn-link {
     color: #0071c1;
 }
 
+.booking-card {
+    border: 3px solid #22AAFF;
+    padding: 1% 1% 1% 1%;
+    margin-bottom: 3%;
+}
+
 .logoutBtn {
     text-decoration: none;
 }

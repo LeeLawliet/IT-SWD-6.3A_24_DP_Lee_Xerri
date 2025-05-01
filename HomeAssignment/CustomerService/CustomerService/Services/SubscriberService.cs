@@ -52,14 +52,16 @@ namespace CustomerService.Services
                             if (!string.IsNullOrEmpty(payload?.Uid))
                             {
                                 await _firestore.Collection("users")
-                                    .Document(payload.Uid)
-                                    .Collection("notifications")
-                                    .Document(notificationType)
-                                    .SetAsync(new
-                                    {
-                                        message = payload.Message,
-                                        timestamp = Timestamp.GetCurrentTimestamp()
-                                    });
+                                .Document(payload.Uid)
+                                .Collection("notifications")
+                                .Document(notificationType == "booking" && !string.IsNullOrEmpty(payload.BookingId)
+                                            ? $"Booking-{payload.BookingId}"
+                                            : notificationType)
+                                .SetAsync(new
+                                {
+                                    message = payload.Message,
+                                    timestamp = Timestamp.GetCurrentTimestamp()
+                                });
 
                                 await _subscriber.AcknowledgeAsync(subscription, new[] { msg.AckId });
 

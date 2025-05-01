@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components;
+using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -45,6 +46,15 @@ namespace WebApp.Services
         {
             if (!string.IsNullOrEmpty(IdToken))
                 request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", IdToken);
+        }
+
+        public string? GetUidFromToken()
+        {
+            if (string.IsNullOrEmpty(IdToken)) return null;
+
+            var handler = new JwtSecurityTokenHandler();
+            var token = handler.ReadJwtToken(IdToken);
+            return token.Claims.FirstOrDefault(c => c.Type == "user_id")?.Value;
         }
     }
 }

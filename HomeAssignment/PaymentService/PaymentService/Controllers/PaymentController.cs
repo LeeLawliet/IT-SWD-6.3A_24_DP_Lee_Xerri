@@ -48,7 +48,7 @@ namespace PaymentService.Controllers
             User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
 
-        [HttpPost]
+        [HttpPost("pay")]
         public async Task<IActionResult> Pay([FromBody] CreatePaymentDTO dto)
         {
             var uid = GetUid();
@@ -87,10 +87,9 @@ namespace PaymentService.Controllers
 
             var (startLat, startLon) = await _fareSvc.GetCoordinatesAsync(booking.StartLocation);
             var (endLat, endLon) = await _fareSvc.GetCoordinatesAsync(booking.EndLocation);
-            
+
             // fare lookup
-            // CHANGE THIS WHEN TAXIFARE API IS BACK UP!!!
-            // var baseFare = await _fareSvc.GetBaseFareAsync(startLat, startLon, endLat, endLon);
+            var baseFare = await _fareSvc.GetBaseFareAsync(startLat, startLon, endLat, endLon);
 
             // multipliers
             if (!CabMult.TryGetValue(booking.CabType, out var cabM))
@@ -119,7 +118,7 @@ namespace PaymentService.Controllers
             }
 
             // total
-            var total = /* baseFare // CHANGE THIS WHEN TAXIFARE API IS BACK UP!!! */ 20 * cabM * dayM * paxM * discount;
+            var total = baseFare * cabM * dayM * paxM * discount;
 
             // record payment
             var payment = new Models.Payment
@@ -127,7 +126,7 @@ namespace PaymentService.Controllers
                 Id = Guid.NewGuid().ToString(),
                 BookingId = booking.Id,
                 UserUid = uid,
-                CabFare = /* baseFare // CHANGE THIS WHEN TAXIFARE API IS BACK UP!!!*/ 20,
+                CabFare = baseFare,
                 CabMultiplier = cabM,
                 DaytimeMultiplier = dayM,
                 PassengersMultiplier = paxM,
