@@ -70,17 +70,6 @@ namespace CustomerService.Controllers
         }
 
         [Authorize]
-        [HttpPost("{uid}/notifications")]
-        public async Task<IActionResult> SendNotification(string uid, [FromBody] string message)
-        {
-            var me = GetUid();
-            if (me == null || me != uid) return Forbid();
-
-            await _svc.SendNotificationAsync(uid, message);
-            return Ok();
-        }
-
-        [Authorize]
         [HttpGet("{uid}/notifications")]
         public async Task<IActionResult> GetNotifications(string uid)
         {

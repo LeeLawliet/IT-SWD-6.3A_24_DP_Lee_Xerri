@@ -15,10 +15,9 @@ namespace CustomerService.Services
     public interface ICustomerService
     {
         Task<(string Uid, string Email, string Username)> RegisterAsync(RegisterDTO dto);
-        Task<SignInResponse> LoginAsync(LoginDTO dto);
+        Task<SignInResponseDTO> LoginAsync(LoginDTO dto);
         Task<(User User, IEnumerable<Notification> Inbox)> GetProfileAsync(string uid);
-        Task SendNotificationAsync(string uid, string message);
-        Task<IEnumerable<Notification>> GetNotificationsAsync(string uid);
+        Task<IEnumerable<NotificationDTO>> GetNotificationsAsync(string uid);
     }
 
     public class CustomerService : ICustomerService
@@ -62,16 +61,16 @@ namespace CustomerService.Services
             return (user.Uid, user.Email, user.Username);
         }
 
-        public async Task<SignInResponse> LoginAsync(LoginDTO dto)
+        public async Task<SignInResponseDTO> LoginAsync(LoginDTO dto)
         {
             var url = $"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={_apiKey}";
             var payload = new { email = dto.Email, password = dto.Password, returnSecureToken = true };
-
             var resp = await _http.PostAsJsonAsync(url, payload);
+
             if (!resp.IsSuccessStatusCode)
                 throw new UnauthorizedAccessException("Invalid credentials.");
 
-            var result = await resp.Content.ReadFromJsonAsync<SignInResponse>();
+            var result = await resp.Content.ReadFromJsonAsync<SignInResponseDTO>();
             if (result is null || string.IsNullOrWhiteSpace(result.idToken))
                 throw new UnauthorizedAccessException("Login failed to return a token.");
 
@@ -95,7 +94,7 @@ namespace CustomerService.Services
                 .Collection("users")
                 .Document(uid)
                 .Collection("notifications")
-                .OrderByDescending("CreatedAt")
+                .OrderByDescending("timestamp")
                 .GetSnapshotAsync();
 
             var inbox = notesSnap.Documents
@@ -104,34 +103,23 @@ namespace CustomerService.Services
             return (user, inbox);
         }
 
-        public async Task SendNotificationAsync(string uid, string message)
-        {
-            var note = new Notification
-            {
-                Id = Guid.NewGuid().ToString(),
-                Message = message,
-                CreatedAt = Timestamp.GetCurrentTimestamp(),
-                IsRead = false
-            };
-            await _db
-                .Collection("users")
-                .Document(uid)
-                .Collection("notifications")
-                .Document(note.Id)
-                .SetAsync(note);
-        }
-
-        public async Task<IEnumerable<Notification>> GetNotificationsAsync(string uid)
+        public async Task<IEnumerable<NotificationDTO>> GetNotificationsAsync(string uid)
         {
             var snaps = await _db
                 .Collection("users")
                 .Document(uid)
                 .Collection("notifications")
-                .OrderByDescending("CreatedAt")
+                .OrderByDescending("timestamp")
                 .GetSnapshotAsync();
 
-            return snaps.Documents
-                        .Select(d => d.ConvertTo<Notification>());
+            return snaps.Documents.Select(d => new NotificationDTO
+            {
+                // use the document‐ID as your notification ID
+                Id = d.Id,
+                Message = d.GetValue<string>("message"),
+                // pull the Firestore Timestamp and convert to DateTime
+                Timestamp = d.GetValue<Timestamp>("timestamp").ToDateTime()
+            });
         }
     }
 }

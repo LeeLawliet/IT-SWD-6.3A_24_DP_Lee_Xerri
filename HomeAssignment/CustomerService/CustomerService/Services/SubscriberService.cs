@@ -59,8 +59,9 @@ namespace CustomerService.Services
                                             : notificationType)
                                 .SetAsync(new
                                 {
+                                    id = Guid.NewGuid().ToString(),
                                     message = payload.Message,
-                                    timestamp = Timestamp.GetCurrentTimestamp()
+                                    timestamp = DateTime.UtcNow
                                 });
 
                                 await _subscriber.AcknowledgeAsync(subscription, new[] { msg.AckId });

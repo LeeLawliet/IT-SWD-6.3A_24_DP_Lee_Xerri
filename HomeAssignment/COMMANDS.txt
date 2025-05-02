@@ -4,9 +4,8 @@ gcloud pubsub topics publish booking-topic --message="test" --project=dphome-458
 // CURL LOGIN
 curl -X POST https://localhost:44305/customer/login -d '{
 
-
+// Artifact creation
 gcloud artifacts repositories create cab-platform-repo --repository-format=docker --location=europe-west1 --description="Docker repo for cab booking platform"
-
 
 // DEPLOYMENT FOR EACH WEBSITE
 dphome-458211

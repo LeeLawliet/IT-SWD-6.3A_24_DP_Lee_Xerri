@@ -1,0 +1,50 @@
+﻿@page "/account"
+@using WebApp.Models
+@using WebApp.Services
+@inject AuthService Auth
+@inject HttpClient Http
+
+<h3>Hello, @Auth.Username!</h3>
+
+<h5>Inbox</h5>
+
+@if (notifications == null)
+{
+    <p>Loading…</p>
+}
+else if (!notifications.Any())
+{
+    <p>No notifications.</p>
+}
+else
+{
+    @foreach (var note in notifications)
+    {
+        <div class="card mb-2">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-1 text-muted">ID: @note.Id</h6>
+                <p class="card-text">@note.Message</p>
+                <small class="text-muted">@note.Timestamp.ToLocalTime()</small>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    List<NotificationDTO>? notifications;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uid = Auth.GetUidFromToken();
+        if (uid == null) { notifications = new(); return; }
+
+        var req = new HttpRequestMessage(HttpMethod.Get, $"customer/{uid}/notifications");
+        Auth.AttachToken(req);
+        var resp = await Http.SendAsync(req);
+
+        if (resp.IsSuccessStatusCode)
+            notifications = await resp.Content.ReadFromJsonAsync<List<NotificationDTO>>();
+        else
+            notifications = new();
+    }
+}

@@ -42,6 +42,7 @@
             @foreach (var booking in currBookings)
             {
                 <div class="booking-card">
+                    <p><strong>Id:</strong> @booking.Id</p>
                     <p>
                         <strong>From:</strong> @booking.StartLocation
                         <button class="btn btn-sm btn-outline-secondary" @onclick="() => AddFavoriteAsync(booking.StartLocation)">☆</button>
@@ -87,6 +88,7 @@
             @foreach (var booking in pastBookings)
             {
                 <div class="booking-card">
+                    <p><strong>Id:</strong> @booking.Id</p>
                     <p><strong>From:</strong> @booking.StartLocation
                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => AddFavoriteAsync(booking.StartLocation)">☆</button>
                     </p>

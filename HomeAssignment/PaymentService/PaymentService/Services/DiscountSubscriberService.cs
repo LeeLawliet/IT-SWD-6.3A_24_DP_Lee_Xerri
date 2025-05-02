@@ -53,8 +53,9 @@ namespace PaymentService.Services
                                         .Document("discount")
                                         .SetAsync(new
                                         {
+                                            id = Guid.NewGuid().ToString(),
                                             message = payload.Message,
-                                            timestamp = Timestamp.GetCurrentTimestamp()
+                                            timestamp = DateTime.UtcNow
                                         });
 
                                     await _subscriber.AcknowledgeAsync(_subscriptionName, new[] { msg.AckId });

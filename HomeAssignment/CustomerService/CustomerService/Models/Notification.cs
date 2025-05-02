@@ -8,7 +8,6 @@ namespace CustomerService.Models
     {
         [FirestoreProperty] public string Id { get; set; }
         [FirestoreProperty] public string Message { get; set; }
-        [FirestoreProperty] public Timestamp CreatedAt { get; set; }
-        [FirestoreProperty] public bool IsRead { get; set; } = false;
+        [FirestoreProperty] public DateTime Timestamp { get; set; }
     }
 }
