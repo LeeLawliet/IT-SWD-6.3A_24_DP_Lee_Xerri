@@ -15,6 +15,10 @@
 {
     <div class="alert alert-danger">@errorMessage</div>
 }
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success">@successMessage</div>
+}
 
 <div class="CurrentBookings">
     <h1>
@@ -38,7 +42,10 @@
             @foreach (var booking in currBookings)
             {
                 <div class="booking-card">
-                    <p><strong>From:</strong> @booking.StartLocation</p>
+                    <p>
+                        <strong>From:</strong> @booking.StartLocation
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => AddFavoriteAsync(booking.StartLocation)">☆</button>
+                    </p>
                     <p><strong>To:</strong> @booking.EndLocation</p>
                     <p><strong>Date:</strong> @booking.DateTime</p>
                     <p><strong>Cab:</strong> @booking.CabType</p>
@@ -80,7 +87,9 @@
             @foreach (var booking in pastBookings)
             {
                 <div class="booking-card">
-                    <p><strong>From:</strong> @booking.StartLocation</p>
+                    <p><strong>From:</strong> @booking.StartLocation
+                       <button class="btn btn-sm btn-outline-secondary" @onclick="() => AddFavoriteAsync(booking.StartLocation)">☆</button>
+                    </p>
                     <p><strong>To:</strong> @booking.EndLocation</p>
                     <p><strong>Date:</strong> @booking.DateTime</p>
                     <p><strong>Cab:</strong> @booking.CabType</p>
@@ -100,6 +109,8 @@
 </div>
 
 @code {
+    private string? errorMessage = "";
+    private string? successMessage = "";
     private bool showCurrent = false;
     private bool showPast = false;
     private void ToggleCurrent() => showCurrent = !showCurrent;
@@ -107,7 +118,6 @@
 
     private List<BookingDTO>? currBookings;
     private List<BookingDTO>? pastBookings;
-    private string? errorMessage = null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -140,7 +150,7 @@
 
     private async Task Pay(string bookingId)
     {
-        errorMessage = null; // reset previous errors
+        errorMessage = successMessage = null;
 
         var request = new HttpRequestMessage(HttpMethod.Post, "payment/pay")
             {
@@ -162,6 +172,28 @@
             Console.WriteLine($"Error: {content}");
 
             errorMessage = "Payment failed. Please try again.";
+        }
+    }
+
+    public async Task AddFavoriteAsync(string name)
+    {
+        errorMessage = successMessage = null;
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "location")
+            {
+                Content = JsonContent.Create(new { name })
+            };
+        Auth.AttachToken(request);
+
+        var response = await Http.SendAsync(request);
+
+        if (response.IsSuccessStatusCode)
+        {
+            successMessage = "Location added.";
+        }
+        else
+        {
+            errorMessage = "Failed to add location.";
         }
     }
 }

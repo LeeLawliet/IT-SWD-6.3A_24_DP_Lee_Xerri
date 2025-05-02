@@ -63,12 +63,17 @@ namespace LocationService.Services
 
         public async Task<LocationDTO> CreateAsync(string userUid, CreateLocationDTO dto)
         {
-            // Optional todo: dont allow duplicate favorites
-            //var doc = await _db.Collection("locations").Document(dto.Name).GetSnapshotAsync();
-            //if (doc.Exists)
-            //{
-            //    throw new Exception("Favorite place already exists.");
-            //}
+            // dont allow duplicate favorites
+            var existing = await _db.Collection("favorites")
+                .WhereEqualTo("UserUid", userUid)
+                .WhereEqualTo("Name", dto.Name)
+                .Limit(1)
+                .GetSnapshotAsync();
+
+            if (existing.Count > 0)
+            {
+                throw new Exception("You already saved this location.");
+            }
 
             var (lat, lon) = await GetCoordinatesAsync(dto.Name);
 
