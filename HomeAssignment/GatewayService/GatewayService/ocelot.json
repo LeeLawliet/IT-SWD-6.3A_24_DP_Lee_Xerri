@@ -5,8 +5,8 @@
       "DownstreamScheme": "https",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
-          "Port": 44386
+          "Host": "customerservice-255271837284.europe-west1.run.app",
+          "Port": 443
         }
       ],
       "UpstreamPathTemplate": "/customer/{everything}",
@@ -17,8 +17,8 @@
       "DownstreamScheme": "https",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
-          "Port": 44325
+          "Host": "bookingservice-255271837284.europe-west1.run.app",
+          "Port": 443
         }
       ],
       "UpstreamPathTemplate": "/booking/{everything}",
@@ -29,8 +29,8 @@
       "DownstreamScheme": "https",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
-          "Port": 44377
+          "Host": "locationservice-255271837284.europe-west1.run.app",
+          "Port": 443
         }
       ],
       "UpstreamPathTemplate": "/location/{everything}",
@@ -41,8 +41,8 @@
       "DownstreamScheme": "https",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
-          "Port": 44374
+          "Host": "paymentservice-255271837284.europe-west1.run.app",
+          "Port": 443
         }
       ],
       "UpstreamPathTemplate": "/payment/{everything}",
@@ -50,6 +50,6 @@
     }
   ],
   "GlobalConfiguration": {
-    "BaseUrl": "https://localhost:44331"
+    "BaseUrl": "https://gatewayservice-255271837284.europe-west1.run.app"
   }
 }
