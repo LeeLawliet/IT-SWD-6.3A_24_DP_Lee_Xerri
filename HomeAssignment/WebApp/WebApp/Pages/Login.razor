@@ -4,6 +4,11 @@
 @inject AuthService Auth
 @inject NavigationManager Nav
 
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
 <h3>Login</h3>
 <input @bind="Email" placeholder="Email" />
 <input @bind="Password" type="password" placeholder="Password" />
@@ -11,22 +16,42 @@
 <p>@Error</p>
 
 @code {
+    private string errorMessage = "";
     private string Email = "";
     private string Password = "";
     private string Error = "";
 
     private async Task HandleLogin()
     {
-        Console.WriteLine($"Trying to log in with: {Email}, {Password}");
-
-        var success = await Auth.LoginAsync(Email, Password);
-        if (success)
+        try
         {
-            Nav.NavigateTo("bookings");
+            var success = await Auth.LoginAsync(Email, Password);
+            if (success)
+            {
+                Nav.NavigateTo("bookings");
+            }
+            else
+            {
+                Error = "Invalid credentials.";
+            }
         }
-        else
+        catch (HttpRequestException ex)
         {
-            Error = "Invalid credentials.";
+            var raw = ex.ToString().ToLower();
+
+            if (raw.Contains("failed to fetch") || raw.Contains("err_connection_refused"))
+            {
+                errorMessage = "Unable to connect to server. Please try again later.";
+            }
+            else
+            {
+                errorMessage = "An unexpected error occurred.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Unexpected error. Please contact support.";
+            Console.WriteLine($"[Unhandled Error] {ex}");
         }
     }
 }

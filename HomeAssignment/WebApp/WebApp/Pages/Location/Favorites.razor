@@ -1,7 +1,166 @@
 ﻿@page "/Favorites"
+@using WebApp.Models
+@using WebApp.Services
+@inject AuthService Auth
+@inject HttpClient Http
 
-<h3>Favorites</h3>
+<h3>Favorite Locations</h3>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success">@successMessage</div>
+}
+
+<input @bind="newLocationName" placeholder="Enter city name" />
+<button class="btn btn-primary" @onclick="AddLocation">Add Location</button>
+
+@if (locations == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    @foreach (var loc in locations)
+    {
+        <div class="booking-card">
+            @if (editingId == loc.Id)
+            {
+                <input @bind="editName" />
+                <button class="btn btn-sm btn-success" @onclick="() => SaveEdit(loc.Id)">Save</button>
+                <button class="btn btn-sm btn-secondary" @onclick="CancelEdit">Cancel</button>
+            }
+            else
+            {
+                <p><strong>@loc.Name</strong></p>
+                <button class="btn btn-sm btn-secondary" @onclick="() => StartEdit(loc.Id, loc.Name)">Edit</button>
+                <button class="btn btn-sm btn-danger" @onclick="() => DeleteLocation(loc.Id)">Delete</button>
+                <button class="btn btn-sm btn-info" @onclick="() => GetWeather(loc.Id)">Get Weather</button>
+            }
+
+            @if (weatherData.TryGetValue(loc.Id, out var weather))
+            {
+                <div class="mt-2">
+                    <p><strong>Weather:</strong> @weather.WeatherDesc</p>
+                    <p><strong>Temp:</strong> @weather.AvgTemp_C °C</p>
+                    <p><strong>Humidity:</strong> @weather.AvgHumidity%</p>
+                </div>
+            }
+        </div>
+    }
+}
 
 @code {
+    private List<LocationDTO>? locations;
+    private string newLocationName = "";
+    private string? editingId = null;
+    private string editName = "";
+    private string? errorMessage;
+    private string? successMessage;
+    private Dictionary<string, WeatherDTO> weatherData = new();
 
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLocations();
+    }
+
+    private async Task LoadLocations()
+    {
+        errorMessage = successMessage = null;
+        var request = new HttpRequestMessage(HttpMethod.Get, "location");
+        Auth.AttachToken(request);
+        var response = await Http.SendAsync(request);
+        if (response.IsSuccessStatusCode)
+        {
+            locations = await response.Content.ReadFromJsonAsync<List<LocationDTO>>();
+        }
+        else
+        {
+            errorMessage = "Failed to load locations.";
+        }
+    }
+
+    private async Task AddLocation()
+    {
+        if (string.IsNullOrWhiteSpace(newLocationName)) return;
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "location")
+            {
+                Content = JsonContent.Create(new { name = newLocationName })
+            };
+        Auth.AttachToken(request);
+        var response = await Http.SendAsync(request);
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadLocations();
+            newLocationName = "";
+            successMessage = "Location added.";
+        }
+        else
+        {
+            errorMessage = "Failed to add location.";
+        }
+    }
+
+    private void StartEdit(string id, string currentName)
+    {
+        editingId = id;
+        editName = currentName;
+    }
+
+    private void CancelEdit() => editingId = null;
+
+    private async Task SaveEdit(string id)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Put, $"location/{id}")
+            {
+                Content = JsonContent.Create(new { name = editName })
+            };
+        Auth.AttachToken(request);
+        var response = await Http.SendAsync(request);
+        if (response.IsSuccessStatusCode)
+        {
+            editingId = null;
+            await LoadLocations();
+        }
+        else
+        {
+            errorMessage = "Failed to update location.";
+        }
+    }
+
+    private async Task DeleteLocation(string id)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Delete, $"location/{id}");
+        Auth.AttachToken(request);
+        var response = await Http.SendAsync(request);
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadLocations();
+        }
+        else
+        {
+            errorMessage = "Failed to delete location.";
+        }
+    }
+
+    private async Task GetWeather(string id)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, $"location/{id}/weather");
+        Auth.AttachToken(request);
+        var response = await Http.SendAsync(request);
+        if (response.IsSuccessStatusCode)
+        {
+            var weather = await response.Content.ReadFromJsonAsync<WeatherDTO>();
+            if (weather != null)
+                weatherData[id] = weather;
+        }
+        else
+        {
+            errorMessage = "Failed to fetch weather.";
+        }
+    }
 }
