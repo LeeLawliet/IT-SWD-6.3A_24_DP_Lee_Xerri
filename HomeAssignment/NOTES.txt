@@ -1,3 +1,6 @@
+// TECHNOLOGIES USED
+.NET, Blazor WebAssembly, nginx, Firebase, Cloud Run, Firestore, Pub/Sub, Ocelot
+
 // TEST PUBSUB
 gcloud pubsub topics publish booking-topic --message="test" --project=dphome-458211 --impersonate-service-account=firebase-adminsdk-fbsvc@itswd63a24dpleexerri.iam.gserviceaccount.com
 
