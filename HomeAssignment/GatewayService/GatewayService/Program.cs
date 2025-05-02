@@ -8,12 +8,11 @@ builder.Services.AddOcelot();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowBlazorWebApp", builder =>
+    options.AddDefaultPolicy(policy =>
     {
-        builder
-            .WithOrigins("https://localhost:44331") // Blazor WebAssembly origin
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+        policy.WithOrigins("https://webapp-255271837284.europe-west1.run.app")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
     });
 });
 
@@ -21,7 +20,7 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-app.UseCors("AllowBlazorWebApp");
+app.UseCors();
 
 await app.UseOcelot(); // Middleware must be awaited
 

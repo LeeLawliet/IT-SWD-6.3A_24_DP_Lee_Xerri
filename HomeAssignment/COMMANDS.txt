@@ -1,2 +1,26 @@
 // TEST PUBSUB
 gcloud pubsub topics publish booking-topic --message="test" --project=dphome-458211 --impersonate-service-account=firebase-adminsdk-fbsvc@itswd63a24dpleexerri.iam.gserviceaccount.com
+
+// CURL LOGIN
+curl -X POST https://localhost:44305/customer/login -d '{
+
+
+gcloud artifacts repositories create cab-platform-repo --repository-format=docker --location=europe-west1 --description="Docker repo for cab booking platform"
+
+
+// DEPLOYMENT FOR EACH WEBSITE
+dphome-458211
+1. cd into the required project directory
+2. docker build -t $serviceName .
+3. docker tag $serviceName europe-west1-docker.pkg.dev/dphome-458211/cab-platform-repo/$serviceName
+4. docker push europe-west1-docker.pkg.dev/dphome-458211/cab-platform-repo/$serviceName
+
+5. TO DEPLOY: gcloud run deploy $serviceName --image=europe-west1-docker.pkg.dev/dphome-458211/cab-platform-repo/$serviceName --platform=managed --region=europe-west1 --allow-unauthenticated
+
+// URLS
+bookingservice: https://bookingservice-255271837284.europe-west1.run.app
+customerservice: https://customerservice-255271837284.europe-west1.run.app
+gatewayservice: https://gatewayservice-255271837284.europe-west1.run.app
+locationservice: https://locationservice-255271837284.europe-west1.run.app
+paymentservice: https://paymentservice-255271837284.europe-west1.run.app
+webapp: https://webapp-255271837284.europe-west1.run.app
