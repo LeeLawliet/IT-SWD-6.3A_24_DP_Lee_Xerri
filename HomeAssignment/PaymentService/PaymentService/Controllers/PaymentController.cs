@@ -89,7 +89,7 @@ namespace PaymentService.Controllers
             var (endLat, endLon) = await _fareSvc.GetCoordinatesAsync(booking.EndLocation);
 
             // fare lookup
-            //var baseFare = await _fareSvc.GetBaseFareAsync(startLat, startLon, endLat, endLon);
+            var baseFare = await _fareSvc.GetBaseFareAsync(startLat, startLon, endLat, endLon);
 
             // multipliers
             if (!CabMult.TryGetValue(booking.CabType, out var cabM))
@@ -116,7 +116,6 @@ namespace PaymentService.Controllers
                 deleteResp.EnsureSuccessStatusCode();
             }
 
-            var baseFare = 20.0; // TODO: replace with actual fare lookup
             var total = baseFare * cabM * dayM * paxM * discount;
 
             var payment = new Models.Payment
