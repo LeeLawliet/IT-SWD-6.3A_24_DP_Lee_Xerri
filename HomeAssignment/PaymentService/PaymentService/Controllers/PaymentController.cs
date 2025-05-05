@@ -119,7 +119,6 @@ namespace PaymentService.Controllers
 
             // total
             var total = baseFare * cabM * dayM * paxM * discount;
-            Math.Round(total, 2);
 
             // record payment
             var payment = new Models.Payment
