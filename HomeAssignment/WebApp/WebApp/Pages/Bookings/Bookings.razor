@@ -92,7 +92,9 @@
                     <p><strong>From:</strong> @booking.StartLocation
                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => AddFavoriteAsync(booking.StartLocation)">☆</button>
                     </p>
-                    <p><strong>To:</strong> @booking.EndLocation</p>
+                    <p><strong>To:</strong> @booking.EndLocation
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => AddFavoriteAsync(booking.EndLocation)">☆</button>
+                    </p>
                     <p><strong>Date:</strong> @booking.DateTime</p>
                     <p><strong>Cab:</strong> @booking.CabType</p>
                     <p><strong>Passengers:</strong> @booking.Passengers</p>

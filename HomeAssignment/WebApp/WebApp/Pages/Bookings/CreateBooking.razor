@@ -15,7 +15,7 @@
         <label class="form-label">Start Location</label>
         <InputText class="form-control mb-1" @bind-Value="booking.StartLocation" placeholder="Type a location" />
 
-        <select class="form-select" @onchange="HandleFavoriteSelect">
+        <select class="form-select" @onchange="HandleFavoriteSelectStart">
             <option value="">-- Or select from favorites --</option>
             @if (favorites != null)
             {
@@ -29,7 +29,18 @@
 
     <div class="mb-3">
         <label class="form-label">End Location</label>
-        <InputText class="form-control" @bind-Value="booking.EndLocation" />
+        <InputText class="form-control" @bind-Value="booking.EndLocation" placeholder="Type a location" />
+
+        <select class="form-select" @onchange="HandleFavoriteSelectEnd">
+            <option value="">-- Or select from favorites --</option>
+            @if (favorites != null)
+            {
+                @foreach (var fav in favorites)
+                {
+                    <option value="@fav.Name">@fav.Name</option>
+                }
+            }
+        </select>
     </div>
 
     <div class="mb-3">
@@ -75,12 +86,21 @@
         }
     }
 
-    private void HandleFavoriteSelect(ChangeEventArgs e)
+    private void HandleFavoriteSelectStart(ChangeEventArgs e)
     {
         var selected = e.Value?.ToString();
         if (!string.IsNullOrEmpty(selected))
         {
             booking.StartLocation = selected;
+        }
+    }
+
+    private void HandleFavoriteSelectEnd(ChangeEventArgs e)
+    {
+        var selected = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(selected))
+        {
+            booking.EndLocation = selected;
         }
     }
 

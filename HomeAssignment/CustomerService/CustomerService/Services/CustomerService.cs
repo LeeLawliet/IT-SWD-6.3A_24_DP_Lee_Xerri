@@ -17,7 +17,9 @@ namespace CustomerService.Services
         Task<(string Uid, string Email, string Username)> RegisterAsync(RegisterDTO dto);
         Task<SignInResponseDTO> LoginAsync(LoginDTO dto);
         Task<(User User, IEnumerable<Notification> Inbox)> GetProfileAsync(string uid);
+        Task AddNotificationAsync(string uid, NotificationDTO note);
         Task<IEnumerable<NotificationDTO>> GetNotificationsAsync(string uid);
+        Task<bool> DeleteNotificationAsync(string uid, string notificationId);
     }
 
     public class CustomerService : ICustomerService
@@ -103,6 +105,19 @@ namespace CustomerService.Services
             return (user, inbox);
         }
 
+        public async Task AddNotificationAsync(string uid, NotificationDTO note)
+        {
+            var docRef = _db.Collection("users").Document(uid)
+                .Collection("notifications")
+                .Document(note.Id ?? Guid.NewGuid().ToString());
+
+            await docRef.SetAsync(new
+            {
+                message = note.Message,
+                timestamp = note.Timestamp == default ? DateTime.UtcNow : note.Timestamp
+            });
+        }
+
         public async Task<IEnumerable<NotificationDTO>> GetNotificationsAsync(string uid)
         {
             var snaps = await _db
@@ -120,6 +135,18 @@ namespace CustomerService.Services
                 // pull the Firestore Timestamp and convert to DateTime
                 Timestamp = d.GetValue<Timestamp>("timestamp").ToDateTime()
             });
+        }
+
+        public async Task<bool> DeleteNotificationAsync(string uid, string notificationId)
+        {
+            var docRef = _db.Collection("users").Document(uid).Collection("notifications").Document(notificationId);
+            var snap = await docRef.GetSnapshotAsync();
+
+            if (!snap.Exists)
+                return false;
+
+            await docRef.DeleteAsync();
+            return true;
         }
     }
 }

@@ -6,6 +6,7 @@ using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Firestore;
 using Google.Cloud.PubSub.V1;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -58,22 +59,29 @@ namespace BookingService
             builder.Services.AddScoped<IBookingService, BookingService.Services.BookingService>();
 
             // JWT Authentication
-            var projectId = builder.Configuration["Firebase:ProjectId"];
-            var authority = $"https://securetoken.google.com/{projectId}";
-            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddJwtBearer(opts =>
+            builder.Services
+            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(opts =>
+            {
+                var projectId = builder.Configuration["Firebase:ProjectId"];
+                var authority = "https://securetoken.google.com/itswd63a24dpleexerri";
+                opts.Authority = authority;
+                opts.TokenValidationParameters = new TokenValidationParameters
                 {
-                    opts.Authority = authority;
-                    opts.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateIssuer = true,
-                        ValidIssuer = authority,
-                        ValidateAudience = true,
-                        ValidAudience = projectId,
-                        ValidateLifetime = true
-                    };
-                });
-            builder.Services.AddAuthorization();
+                    ValidateIssuer = true,
+                    ValidIssuer = authority,
+                    ValidateAudience = true,
+                    ValidAudience = "itswd63a24dpleexerri",
+                    ValidateLifetime = true
+                };
+            });
+
+            builder.Services.AddAuthorization(options =>
+            {
+                options.FallbackPolicy = new AuthorizationPolicyBuilder()
+                    .RequireAuthenticatedUser()
+                    .Build();
+            });
 
             // HttpClients
             builder.Services.AddHttpClient("CustomerAPI", client =>
@@ -117,6 +125,14 @@ namespace BookingService
             var app = builder.Build();
             app.UseSwagger();
             app.UseSwaggerUI();
+            app.Use(async (context, next) =>
+            {
+                Console.WriteLine($"Path: {context.Request.Path}");
+                Console.WriteLine($"IsAuthenticated: {context.User.Identity?.IsAuthenticated}");
+                Console.WriteLine($"AuthType: {context.User.Identity?.AuthenticationType}");
+                Console.WriteLine($"Claims: {string.Join(", ", context.User.Claims.Select(c => $"{c.Type}={c.Value}"))}");
+                await next();
+            });
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();

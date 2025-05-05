@@ -10,17 +10,17 @@ namespace PaymentService.Services
     {
         private readonly SubscriberServiceApiClient _subscriber;
         private readonly SubscriptionName _subscriptionName;
-        private readonly FirestoreDb _firestore;
+        private readonly IHttpClientFactory _httpFactory;
         private readonly ILogger<DiscountSubscriberService> _logger;
 
         public DiscountSubscriberService(
             SubscriberServiceApiClient subscriber,
-            FirestoreDb firestore,
+            IHttpClientFactory httpFactory,
             ILogger<DiscountSubscriberService> logger,
             IConfiguration config)
         {
             _subscriber = subscriber;
-            _firestore = firestore;
+            _httpFactory = httpFactory;
             _logger = logger;
 
             var projectId = config["PubSub:ProjectId"];
@@ -30,6 +30,8 @@ namespace PaymentService.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            var client = _httpFactory.CreateClient("CustomerAPI");
+
             _ = Task.Run(async () =>
             {
                 while (!stoppingToken.IsCancellationRequested)
@@ -47,16 +49,16 @@ namespace PaymentService.Services
 
                                 if (!string.IsNullOrEmpty(payload?.Uid))
                                 {
-                                    await _firestore.Collection("users")
-                                        .Document(payload.Uid)
-                                        .Collection("notifications")
-                                        .Document("discount")
-                                        .SetAsync(new
-                                        {
-                                            id = Guid.NewGuid().ToString(),
-                                            message = payload.Message,
-                                            timestamp = DateTime.UtcNow
-                                        });
+                                    var postResp = await client.PostAsJsonAsync(
+                                    $"/api/User/{payload.Uid}/notifications",
+                                    new
+                                    {
+                                        id = "discount",
+                                        message = payload.Message,
+                                        timestamp = DateTime.UtcNow
+                                    });
+
+                                    postResp.EnsureSuccessStatusCode();
 
                                     await _subscriber.AcknowledgeAsync(_subscriptionName, new[] { msg.AckId });
 

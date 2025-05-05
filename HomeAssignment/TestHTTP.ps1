@@ -8,7 +8,7 @@ $locationUrl = "https://localhost:44377/api/Location"
 Write-Host "==== STEP 1: Registering New User ===="
 $registerBody = '{
   "username": "testuser",
-  "email": "testuser@example.com",
+  "email": "xyxyxaaa@example.com",
   "password": "password"
 }'
 $registerResponse = Invoke-RestMethod -Method POST -Uri "$customerUrl/register" -ContentType "application/json" -Body $registerBody
@@ -20,7 +20,7 @@ Start-Sleep -Seconds 1
 # 2. Login
 Write-Host "`n==== STEP 2: Logging In ===="
 $loginBody = '{
-  "email": "testuser@example.com",
+  "email": "xyxyxaaa@example.com",
   "password": "password"
 }'
 $loginResponse = Invoke-RestMethod -Method POST -Uri "$customerUrl/login" -ContentType "application/json" -Body $loginBody

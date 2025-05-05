@@ -113,19 +113,5 @@ namespace BookingService.Services
                 Paid = b.Paid
             };
         }
-
-        [Authorize]
-        [HttpPut("{id}/mark-paid")]
-        public async Task<IActionResult> MarkBookingAsPaid(string id)
-        {
-            var snap = await _db.Collection("bookings").Document(id).GetSnapshotAsync();
-
-            if (!snap.Exists)
-                return NotFound("Booking not found.");
-
-            await snap.Reference.UpdateAsync("Paid", true);
-            return NoContent();
-        }
-
     }
 }

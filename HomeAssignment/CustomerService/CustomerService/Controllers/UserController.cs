@@ -70,6 +70,17 @@ namespace CustomerService.Controllers
         }
 
         [Authorize]
+        [HttpPost("{uid}/notifications")]
+        public async Task<IActionResult> AddNotification(string uid, [FromBody] NotificationDTO note)
+        {
+            var me = GetUid();
+            if (me != uid) return Forbid();
+
+            await _svc.AddNotificationAsync(uid, note);
+            return Ok();
+        }
+
+        [Authorize]
         [HttpGet("{uid}/notifications")]
         public async Task<IActionResult> GetNotifications(string uid)
         {
@@ -78,6 +89,35 @@ namespace CustomerService.Controllers
 
             var notes = await _svc.GetNotificationsAsync(uid);
             return Ok(notes);
+        }
+
+        [Authorize]
+        [HttpDelete("{uid}/notifications/{id}")]
+        public async Task<IActionResult> DeleteNotification(string uid, string id)
+        {
+            var me = GetUid();
+            if (me == null || me != uid)
+            {
+                Console.WriteLine($"Forbidden: token UID '{me}' does not match path UID '{uid}'");
+                return Forbid();
+            }
+
+            try
+            {
+                var success = await _svc.DeleteNotificationAsync(uid, id);
+                if (!success)
+                {
+                    Console.WriteLine($"Notification '{id}' for user '{uid}' not found.");
+                    return NotFound();
+                }
+
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exception while deleting notification '{id}': {ex.Message}");
+                return StatusCode(500, "Internal server error");
+            }
         }
     }
 }

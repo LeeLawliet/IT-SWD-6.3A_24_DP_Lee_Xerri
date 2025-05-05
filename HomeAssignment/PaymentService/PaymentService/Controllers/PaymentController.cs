@@ -89,38 +89,36 @@ namespace PaymentService.Controllers
             var (endLat, endLon) = await _fareSvc.GetCoordinatesAsync(booking.EndLocation);
 
             // fare lookup
-            var baseFare = await _fareSvc.GetBaseFareAsync(startLat, startLon, endLat, endLon);
+            //var baseFare = await _fareSvc.GetBaseFareAsync(startLat, startLon, endLat, endLon);
 
             // multipliers
             if (!CabMult.TryGetValue(booking.CabType, out var cabM))
                 return BadRequest($"Unknown cab type '{booking.CabType}'.");
+
             var hour = booking.DateTime.ToLocalTime().Hour;
             var dayM = (hour >= 0 && hour < 8) ? 1.2 : 1.0;
+
             double paxM = booking.Passengers <= 4 ? 1 :
                           booking.Passengers <= 8 ? 2 :
                           throw new InvalidOperationException("Too many passengers");
 
-            // Checking for 3 booking discount
-            var discountDoc = await _db.Collection("users")
-                .Document(uid)
-                .Collection("notifications")
-                .Document("discount")
-                .GetSnapshotAsync();
+            var notesResp = await userClient.GetAsync($"/api/User/{uid}/notifications");
+            notesResp.EnsureSuccessStatusCode();
 
-            bool discountAvailable = discountDoc.Exists;
+            var inbox = await notesResp.Content.ReadFromJsonAsync<List<NotificationDTO>>();
+            var discountNote = inbox?.FirstOrDefault(n => n.Id == "discount");
 
             double discount = 1.0;
-
-            if (discountAvailable)
+            if (discountNote != null)
             {
                 discount = 0.3; // apply 70% discount
-                await discountDoc.Reference.DeleteAsync(); // remove so it's one-time use
+                var deleteResp = await userClient.DeleteAsync($"/api/User/{uid}/notifications/discount");
+                deleteResp.EnsureSuccessStatusCode();
             }
 
-            // total
+            var baseFare = 20.0; // TODO: replace with actual fare lookup
             var total = baseFare * cabM * dayM * paxM * discount;
 
-            // record payment
             var payment = new Models.Payment
             {
                 Id = Guid.NewGuid().ToString(),
@@ -136,12 +134,19 @@ namespace PaymentService.Controllers
             };
             await _db.Collection("payments").Document(payment.Id).SetAsync(payment);
 
-            // mark booking paid
-            await _db.Collection("bookings")
-             .Document(booking.Id)
-             .UpdateAsync("Paid", true);
+            var req = new HttpRequestMessage(HttpMethod.Put, $"/api/Booking/{booking.Id}/mark-paid");
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
 
-            // return DTO
+            var markPaidResp = await bookClient.SendAsync(req);
+            if (!markPaidResp.IsSuccessStatusCode)
+            {
+                var body = await markPaidResp.Content.ReadAsStringAsync();
+                return StatusCode(
+                    (int)markPaidResp.StatusCode,
+                    $"BookingService failed ({markPaidResp.StatusCode}): {body}"
+                );
+            }
+
             return Ok(new PaymentDTO
             {
                 Id = payment.Id,
