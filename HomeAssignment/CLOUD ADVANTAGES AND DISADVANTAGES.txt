@@ -1,0 +1,36 @@
+CLOUD ADVANTAGES AND DISADVANTAGES FOR HOSTING WEB APPLICATIONS, MICROSERVICES, AND DATABASES.
+
+
+Advantages
+
+    - Scalability
+        - Cloud Run scales automatically according to demand (more users -> more containers)
+	- Since it is automatic, there is no need to manually adjust server capacity
+
+    - Reliability
+	- In my case, my services are distributed and monitored by Google
+
+    - Ease of deployment
+	- Although there was a small learning curve, deploying through Docker and GCloud CLI really simplifies the deployment process.
+
+    - Cost distribution
+	- Costs are calculated according to the resources being used, rather than a flat rate.
+
+    - Security & Authentication
+	- Implementation of Auth and Security was straightforward since GCloud has built-in IAM, and Firebase has Firebase Auth.
+
+    - Event-Driven Architecture Support
+	- Through GCloud, I was able to easily implement asynchronous message transferring between my microservices for my discount & booking notifications
+
+Disadvantages
+
+    - Learning Curves
+	- As I mentioned before, there is a small learning curve for deploying, but there is also a learning curve for getting used to IAM policies, etc.. I found myself 
+	forgetting a few required steps (e.g., setting up GCP service account for Pub/Sub, enabling required roles for Pub/Sub & Service Account Token Creation)
+	and having to refresh my memory when setting up the project.
+
+    - Debugging Difficulties
+	- I ended up having to redeploy my services many times whenever testing or debugging a new change, which was very tedious.
+
+    - Budget Monitoring
+	- It is very important to monitor the cost of resources used, especially when on a small budget. Failure to do so may incur charges.

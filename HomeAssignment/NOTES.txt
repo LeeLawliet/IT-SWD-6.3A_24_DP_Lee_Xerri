@@ -1,5 +1,5 @@
 // TECHNOLOGIES USED
-.NET, Blazor WebAssembly, nginx, Firebase, Cloud Run, Firestore, Pub/Sub, Ocelot
+.NET 8, Blazor WebAssembly, nginx, Firebase, Cloud Run, Firestore, Pub/Sub, Ocelot
 
 // TEST PUBSUB
 gcloud pubsub topics publish booking-topic --message="test" --project=dphome-458211 --impersonate-service-account=firebase-adminsdk-fbsvc@itswd63a24dpleexerri.iam.gserviceaccount.com
@@ -26,3 +26,5 @@ gatewayservice: https://gatewayservice-255271837284.europe-west1.run.app
 locationservice: https://locationservice-255271837284.europe-west1.run.app
 paymentservice: https://paymentservice-255271837284.europe-west1.run.app
 webapp: https://webapp-255271837284.europe-west1.run.app
+
+gcloud run services add-iam-policy-binding bookingservice --member="allUsers" --role="roles/run.invoker" --region=europe-west1 --platform=managed
